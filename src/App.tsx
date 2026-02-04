@@ -9,6 +9,9 @@ import Studio from "./pages/Studio";
 import Vault from "./pages/Vault";
 import PublicCalendar from "./pages/PublicCalendar";
 import Onboarding from "./pages/Onboarding";
+import Settings from "./pages/Settings";
+import Integrations from "./pages/settings/Integrations";
+import IntegrationsCallback from "./pages/settings/IntegrationsCallback";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,6 +29,10 @@ const App = () => (
           <Route path="/vault" element={<Vault />} />
           <Route path="/calendar/:token" element={<PublicCalendar />} />
           <Route path="/onboarding" element={<Onboarding />} />
+          <Route path="/settings" element={<Settings />}>
+            <Route path="integrations" element={<Integrations />} />
+            <Route path="integrations/callback" element={<IntegrationsCallback />} />
+          </Route>
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
