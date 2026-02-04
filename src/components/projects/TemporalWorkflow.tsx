@@ -172,6 +172,30 @@ export function TemporalWorkflow({ projectId }: TemporalWorkflowProps) {
     return { thisWeek, nextWeek, upcoming, overdue };
   }, [tasks, myTasksOnly, currentUser, thisWeekStart, thisWeekEnd, nextWeekStart, nextWeekEnd]);
 
+  // Calculate capacity by assignee for this week
+  const capacityIndicator = useMemo(() => {
+    if (!tasks) return [];
+
+    const capacityMap = new Map<string, { count: number; profile: typeof staffProfiles[0] | null }>();
+
+    // Only count this week's tasks
+    groupedTasks.thisWeek.forEach((task) => {
+      const userId = task.assigned_to || "unassigned";
+      const existing = capacityMap.get(userId) || { count: 0, profile: null };
+      existing.count += 1;
+      if (!existing.profile && task.assigned_to) {
+        existing.profile = staffProfiles.find((p) => p.user_id === task.assigned_to) || null;
+      }
+      capacityMap.set(userId, existing);
+    });
+
+    return Array.from(capacityMap.entries()).map(([userId, data]) => ({
+      userId,
+      count: data.count,
+      profile: data.profile,
+    }));
+  }, [tasks, groupedTasks.thisWeek, staffProfiles]);
+
   const getAssignee = (userId: string | null) => {
     if (!userId) return null;
     return staffProfiles.find((p) => p.user_id === userId);
@@ -191,7 +215,7 @@ export function TemporalWorkflow({ projectId }: TemporalWorkflowProps) {
     );
   }
 
-  const TaskCard = ({ task }: { task: Task }) => {
+  const TaskCard = ({ task, muted = false }: { task: Task; muted?: boolean }) => {
     const assignee = getAssignee(task.assigned_to);
 
     return (
@@ -200,7 +224,7 @@ export function TemporalWorkflow({ projectId }: TemporalWorkflowProps) {
         animate={{ opacity: 1, y: 0 }}
         className={`group rounded-md border border-l-4 bg-card p-4 transition-all hover:shadow-sm ${
           priorityConfig[task.priority as keyof typeof priorityConfig] || priorityConfig.medium
-        }`}
+        } ${muted ? "opacity-60" : ""}`}
       >
         <div className="flex items-start gap-3">
           <Checkbox
@@ -251,11 +275,11 @@ export function TemporalWorkflow({ projectId }: TemporalWorkflowProps) {
                           {assignee?.avatar_url && (
                             <AvatarImage src={assignee.avatar_url} alt={assignee.full_name} />
                           )}
-                          <AvatarFallback className="text-[10px] bg-primary/10">
+                          <AvatarFallback className={`text-[10px] ${task.assigned_to ? "bg-primary/10" : "bg-muted text-muted-foreground/50"}`}>
                             {getAssigneeInitials(task.assigned_to)}
                           </AvatarFallback>
                         </Avatar>
-                        <span className="text-xs text-muted-foreground">
+                        <span className={`text-xs ${task.assigned_to ? "text-muted-foreground" : "text-muted-foreground/50 italic"}`}>
                           {assignee?.full_name || "Unassigned"}
                         </span>
                       </div>
@@ -264,9 +288,9 @@ export function TemporalWorkflow({ projectId }: TemporalWorkflowProps) {
                       <SelectItem value="unassigned">
                         <div className="flex items-center gap-2">
                           <Avatar className="h-5 w-5">
-                            <AvatarFallback className="text-[10px]">?</AvatarFallback>
+                            <AvatarFallback className="text-[10px] bg-muted text-muted-foreground/50">?</AvatarFallback>
                           </Avatar>
-                          <span>Unassigned</span>
+                          <span className="text-muted-foreground/50 italic">Unassigned</span>
                         </div>
                       </SelectItem>
                       {staffProfiles.map((profile) => (
@@ -292,11 +316,11 @@ export function TemporalWorkflow({ projectId }: TemporalWorkflowProps) {
                       {assignee?.avatar_url && (
                         <AvatarImage src={assignee.avatar_url} alt={assignee.full_name} />
                       )}
-                      <AvatarFallback className="text-[10px] bg-primary/10">
+                      <AvatarFallback className={`text-[10px] ${task.assigned_to ? "bg-primary/10" : "bg-muted text-muted-foreground/50"}`}>
                         {getAssigneeInitials(task.assigned_to)}
                       </AvatarFallback>
                     </Avatar>
-                    <span className="text-xs text-muted-foreground">
+                    <span className={`text-xs ${task.assigned_to ? "text-muted-foreground" : "text-muted-foreground/50 italic"}`}>
                       {assignee?.full_name || "Unassigned"}
                     </span>
                   </div>
@@ -323,6 +347,21 @@ export function TemporalWorkflow({ projectId }: TemporalWorkflowProps) {
               </div>
             </div>
 
+            {/* Assignee Footer - Always visible */}
+            <div className="mt-3 pt-2 border-t border-border/30 flex items-center gap-2">
+              <Avatar className="h-5 w-5">
+                {assignee?.avatar_url && (
+                  <AvatarImage src={assignee.avatar_url} alt={assignee.full_name} />
+                )}
+                <AvatarFallback className={`text-[9px] ${task.assigned_to ? "bg-primary/10" : "bg-muted text-muted-foreground/40"}`}>
+                  {task.assigned_to ? getAssigneeInitials(task.assigned_to) : <User className="h-3 w-3" />}
+                </AvatarFallback>
+              </Avatar>
+              <span className={`text-[10px] ${task.assigned_to ? "text-muted-foreground" : "text-muted-foreground/40 italic"}`}>
+                {assignee?.full_name || "Unassigned"}
+              </span>
+            </div>
+
             {/* Internal notes - Admin/Staff only */}
             {isAdminOrStaff && task.internal_notes && (
               <div className="mt-2 rounded bg-muted/50 p-2 text-[10px] text-muted-foreground">
@@ -341,23 +380,55 @@ export function TemporalWorkflow({ projectId }: TemporalWorkflowProps) {
     tasks,
     accentColor,
     icon,
+    muted = false,
+    showCapacity = false,
   }: {
     title: string;
     tasks: Task[];
     accentColor: string;
     icon?: React.ReactNode;
+    muted?: boolean;
+    showCapacity?: boolean;
   }) => (
-    <div className="space-y-3">
+    <div className={`space-y-3 ${muted ? "opacity-70" : ""}`}>
       <div className="flex items-center justify-between border-b border-border/50 pb-2">
         <div className="flex items-center gap-2">
           <div className={`h-2 w-2 rounded-full ${accentColor}`} />
-          <h4 className="text-sm font-medium tracking-wide uppercase text-muted-foreground">
+          <h4 className={`text-sm font-medium tracking-wide uppercase ${muted ? "text-muted-foreground/70" : "text-muted-foreground"}`}>
             {title}
           </h4>
           <span className="text-xs text-muted-foreground">({tasks.length})</span>
         </div>
         {icon}
       </div>
+
+      {/* Capacity Indicator for This Week */}
+      {showCapacity && capacityIndicator.length > 0 && (
+        <div className="flex flex-wrap items-center gap-4 rounded-md bg-muted/30 px-4 py-2.5">
+          <span className="text-[10px] font-medium uppercase tracking-editorial text-muted-foreground">
+            Team Capacity
+          </span>
+          <div className="flex items-center gap-4">
+            {capacityIndicator.map(({ userId, count, profile }) => (
+              <div key={userId} className="flex items-center gap-2">
+                <Avatar className="h-6 w-6">
+                  {profile?.avatar_url && (
+                    <AvatarImage src={profile.avatar_url} alt={profile?.full_name || "Unknown"} />
+                  )}
+                  <AvatarFallback className="text-[10px] bg-primary/10">
+                    {profile?.full_name?.split(" ").map((n) => n[0]).join("") || "?"}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="text-xs">
+                  <span className="font-medium">{profile?.full_name?.split(" ")[0] || "Unassigned"}</span>
+                  <span className="text-muted-foreground">: {count} task{count !== 1 ? "s" : ""}</span>
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {tasks.length === 0 ? (
         <p className="py-4 text-center text-xs text-muted-foreground">
           No tasks scheduled
@@ -365,7 +436,7 @@ export function TemporalWorkflow({ projectId }: TemporalWorkflowProps) {
       ) : (
         <div className="space-y-2">
           {tasks.map((task) => (
-            <TaskCard key={task.id} task={task} />
+            <TaskCard key={task.id} task={task} muted={muted} />
           ))}
         </div>
       )}
@@ -413,26 +484,29 @@ export function TemporalWorkflow({ projectId }: TemporalWorkflowProps) {
         />
       )}
 
-      {/* This Week */}
+      {/* This Week - Primary focus with Capacity Indicator */}
       <TaskSection
         title="This Week"
         tasks={groupedTasks.thisWeek}
         accentColor="bg-primary"
+        showCapacity={true}
       />
 
-      {/* Next Week */}
+      {/* Next Week - Muted */}
       <TaskSection
         title="Next Week"
         tasks={groupedTasks.nextWeek}
         accentColor="bg-amber-500"
+        muted={true}
       />
 
-      {/* Upcoming */}
+      {/* Upcoming - More Muted */}
       <TaskSection
         title="Upcoming"
         tasks={groupedTasks.upcoming}
         accentColor="bg-muted-foreground"
         icon={<ChevronRight className="h-4 w-4 text-muted-foreground" />}
+        muted={true}
       />
 
       {/* Summary */}
