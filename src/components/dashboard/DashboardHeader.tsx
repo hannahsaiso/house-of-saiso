@@ -6,7 +6,7 @@ interface DashboardHeaderProps {
 }
 
 export function DashboardHeader({
-  userName = "there",
+  userName,
   userRole = "admin",
 }: DashboardHeaderProps) {
   const getGreeting = () => {
@@ -38,7 +38,7 @@ export function DashboardHeader({
         {getRoleLabel()}
       </p>
       <h1 className="font-heading text-3xl font-semibold tracking-tight md:text-4xl">
-        {getGreeting()}, {userName}
+        {getGreeting()}{userName ? `, ${userName}` : ""}
       </h1>
       <p className="mt-2 text-muted-foreground">
         Here's what's happening across your agency and studio.
