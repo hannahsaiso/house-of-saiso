@@ -12,6 +12,9 @@ import Onboarding from "./pages/Onboarding";
 import Settings from "./pages/Settings";
 import Integrations from "./pages/settings/Integrations";
 import IntegrationsCallback from "./pages/settings/IntegrationsCallback";
+import ProfileSettings from "./pages/settings/ProfileSettings";
+import TeamManagement from "./pages/settings/TeamManagement";
+import AdminDashboard from "./pages/admin/Dashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -29,7 +32,10 @@ const App = () => (
           <Route path="/vault" element={<Vault />} />
           <Route path="/calendar/:token" element={<PublicCalendar />} />
           <Route path="/onboarding" element={<Onboarding />} />
+          <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/settings" element={<Settings />}>
+            <Route path="profile" element={<ProfileSettings />} />
+            <Route path="team" element={<TeamManagement />} />
             <Route path="integrations" element={<Integrations />} />
             <Route path="integrations/callback" element={<IntegrationsCallback />} />
           </Route>

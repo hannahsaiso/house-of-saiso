@@ -10,14 +10,15 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 
 const Vault = () => {
   const navigate = useNavigate();
-  const { isAdmin, isLoading } = useUserRole();
+  const { isAdminOrStaff, isAdmin, isLoading } = useUserRole();
 
   useEffect(() => {
-    if (!isLoading && !isAdmin) {
+    // Staff can access but with limited tabs (handled in VaultTabs)
+    if (!isLoading && !isAdminOrStaff) {
       navigate("/");
-      toast.error("Access restricted to administrators");
+      toast.error("Access restricted to staff and administrators");
     }
-  }, [isAdmin, isLoading, navigate]);
+  }, [isAdminOrStaff, isLoading, navigate]);
 
   // Show loading while checking role
   if (isLoading) {
@@ -30,8 +31,8 @@ const Vault = () => {
     );
   }
 
-  // If not admin, don't render anything (redirect happening)
-  if (!isAdmin) {
+  // If not authorized, don't render anything (redirect happening)
+  if (!isAdminOrStaff) {
     return null;
   }
 
@@ -47,7 +48,7 @@ const Vault = () => {
             <div className="mb-8 flex items-center gap-3">
               <Lock className="h-5 w-5 text-[hsl(43_65%_52%)]" />
               <p className="text-xs font-medium uppercase tracking-[0.2em] text-[hsl(0_0%_50%)]">
-                Admin Only
+                {isAdmin ? "Admin Only" : "Staff Access"}
               </p>
             </div>
             <h1 className="font-heading text-4xl font-semibold text-[hsl(45_30%_90%)]">

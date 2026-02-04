@@ -1,4 +1,4 @@
-import { LayoutDashboard, FolderKanban, Calendar, Lock, ChevronLeft, ChevronRight, Settings } from "lucide-react";
+import { LayoutDashboard, FolderKanban, Calendar, Lock, ChevronLeft, ChevronRight, Settings, Crown } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import {
@@ -22,13 +22,15 @@ interface NavItem {
   url: string;
   icon: React.ElementType;
   adminOnly?: boolean;
+  adminOrStaffOnly?: boolean;
 }
 
 const navItems: NavItem[] = [
   { title: "DASHBOARD", url: "/", icon: LayoutDashboard },
+  { title: "EXECUTIVE", url: "/admin/dashboard", icon: Crown, adminOnly: true },
   { title: "PROJECTS", url: "/projects", icon: FolderKanban },
   { title: "STUDIO", url: "/studio", icon: Calendar },
-  { title: "VAULT", url: "/vault", icon: Lock, adminOnly: true },
+  { title: "VAULT", url: "/vault", icon: Lock, adminOrStaffOnly: true },
   { title: "SETTINGS", url: "/settings/integrations", icon: Settings },
 ];
 
@@ -36,10 +38,11 @@ export function AppSidebar() {
   const { state, toggleSidebar } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
-  const { isAdmin, isLoading } = useUserRole();
+  const { isAdmin, isAdminOrStaff, isLoading } = useUserRole();
 
   const filteredItems = navItems.filter((item) => {
     if (item.adminOnly && !isAdmin) return false;
+    if (item.adminOrStaffOnly && !isAdminOrStaff) return false;
     return true;
   });
 

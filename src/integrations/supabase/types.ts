@@ -273,8 +273,12 @@ export type Database = {
           avatar_url: string | null
           created_at: string
           email: string
+          emergency_contact_name: string | null
+          emergency_contact_phone: string | null
           full_name: string | null
           id: string
+          phone: string | null
+          role_preferences: Json | null
           updated_at: string
           user_id: string
         }
@@ -282,8 +286,12 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           email: string
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
           full_name?: string | null
           id?: string
+          phone?: string | null
+          role_preferences?: Json | null
           updated_at?: string
           user_id: string
         }
@@ -291,8 +299,12 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           email?: string
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
           full_name?: string | null
           id?: string
+          phone?: string | null
+          role_preferences?: Json | null
           updated_at?: string
           user_id?: string
         }
@@ -574,9 +586,12 @@ export type Database = {
       }
       staff_profiles: {
         Row: {
+          avatar_url: string | null
           contract_file_path: string | null
           created_at: string | null
           email: string | null
+          emergency_contact_name: string | null
+          emergency_contact_phone: string | null
           full_name: string
           hire_date: string | null
           id: string
@@ -586,9 +601,12 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          avatar_url?: string | null
           contract_file_path?: string | null
           created_at?: string | null
           email?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
           full_name: string
           hire_date?: string | null
           id?: string
@@ -598,9 +616,12 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          avatar_url?: string | null
           contract_file_path?: string | null
           created_at?: string | null
           email?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
           full_name?: string
           hire_date?: string | null
           id?: string
@@ -681,6 +702,7 @@ export type Database = {
           internal_notes: string | null
           priority: string
           project_id: string
+          shared_notes: string | null
           status: string
           title: string
           updated_at: string
@@ -695,6 +717,7 @@ export type Database = {
           internal_notes?: string | null
           priority?: string
           project_id: string
+          shared_notes?: string | null
           status?: string
           title: string
           updated_at?: string
@@ -709,6 +732,7 @@ export type Database = {
           internal_notes?: string | null
           priority?: string
           project_id?: string
+          shared_notes?: string | null
           status?: string
           title?: string
           updated_at?: string
@@ -722,6 +746,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      team_invites: {
+        Row: {
+          accepted_at: string | null
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          invited_by: string | null
+          invited_role: Database["public"]["Enums"]["app_role"]
+          token: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          created_at?: string
+          email: string
+          expires_at?: string
+          id?: string
+          invited_by?: string | null
+          invited_role?: Database["public"]["Enums"]["app_role"]
+          token?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          invited_by?: string | null
+          invited_role?: Database["public"]["Enums"]["app_role"]
+          token?: string
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {
