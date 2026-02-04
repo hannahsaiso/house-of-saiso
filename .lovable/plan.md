@@ -1,213 +1,229 @@
 
-
-# Client Onboarding Module
-### A Premium Multi-Step Wizard Experience
+# Frankie's View: Onboarding Submissions Dashboard
+### A Staff-Focused Summary for Quick Task Setup
 
 ---
 
 ## Overview
 
-This plan implements a sophisticated 4-step onboarding wizard at `/onboarding` that feels like a concierge experience. The design follows the established "Clean Editorial" aesthetic with progressive disclosure, elegant animations, and autosave functionality.
+This plan creates a dedicated section on the dashboard for Frankie (and all Staff users) to see recently onboarded clients with their key information, enabling immediate internal task list creation. The view respects role-based access - showing only what Staff should see (no financials, no HR data).
 
 ---
 
-## User Interface Design
+## Design Approach
 
-### Layout Philosophy
-- **Progressive Disclosure**: One focused question cluster per step
-- **Centered Stage**: Content presented in a narrow column (max-w-2xl) with generous whitespace
-- **Editorial Typography**: Large Playfair Display serif for questions, Inter for inputs
-- **Step Indicator**: Minimal horizontal progress bar with step labels
+### Location Strategy
+Rather than creating a completely separate page, I'll add an "Onboarding Queue" section to the main Dashboard that appears for Admin and Staff users only. This keeps Frankie in the familiar dashboard flow while surfacing the critical onboarding data he needs.
 
-### Visual Flow
+### Visual Design
+Following the established "Clean Editorial" aesthetic:
+- Card-based layout matching existing `ProjectCard` and `StudioBookingCard` patterns
+- Elegant serif headings with the Playfair Display font
+- Staggered fade-in animations using Framer Motion
+- Champagne accent for actionable elements
+
+---
+
+## User Interface
+
+### Onboarding Queue Section
 ```text
 +----------------------------------------------------------+
+|  ONBOARDING QUEUE                           View All >   |
 |                                                          |
-|                    Step 1 of 4                           |
-|           [=====-----------------------]                 |
+|  +----------------------------------------------------+  |
+|  |  [Company Logo Placeholder]                        |  |
+|  |  Lumina Beauty                    2 hours ago      |  |
+|  |  Contact: Sarah Chen                               |  |
+|  |  ----------------------------------------          |  |
+|  |  Services: Content Creation, Studio Rental         |  |
+|  |  Vision: "Looking to refresh our brand..."         |  |
+|  |  ----------------------------------------          |  |
+|  |  [View Full Profile]  [Start Task Setup]           |  |
+|  +----------------------------------------------------+  |
 |                                                          |
-|                                                          |
-|           "Tell us about your company..."                |
-|                                                          |
-|           +----------------------------------+            |
-|           |  Company Name                    |            |
-|           +----------------------------------+            |
-|                                                          |
-|           +----------------------------------+            |
-|           |  Key Contact                     |            |
-|           +----------------------------------+            |
-|                                                          |
-|                                                          |
-|                   [Continue]                             |
-|                                                          |
-|               Saving progress...                         |
+|  +----------------------------------------------------+  |
+|  |  Terra Wellness                   Yesterday        |  |
+|  |  Contact: Michael Torres                           |  |
+|  |  Services: SEO & Analytics, Social Media           |  |
+|  |  Vision: "We want to expand our digital..."        |  |
+|  |  [View Full Profile]  [Start Task Setup]           |  |
+|  +----------------------------------------------------+  |
 +----------------------------------------------------------+
 ```
 
----
-
-## The 4-Step Flow
-
-### Step 1: The Basics
-**Heading**: "Tell us about your company..."
-- Company name (required)
-- Key contact name (required)
-- Contact email (required)
-- Contact phone (optional)
-- Social handles: Instagram, LinkedIn, Website (optional)
-
-### Step 2: Project Deep-Dive
-**Heading**: "What's your vision?"
-- Project goals (large textarea with placeholder guidance)
-- Services needed (multi-select toggle cards):
-  - Content Creation
-  - Social Media Management
-  - SEO & Analytics
-  - Studio Rental
-  - Brand Strategy
-  - Video Production
-
-### Step 3: Brand Assets
-**Heading**: "Share your brand world..."
-- Drag & drop zone with gallery-style empty state
-- File types: Images (logos, mood boards), PDFs (brand guidelines)
-- Files upload to storage bucket: `client-assets/{client_id}/`
-- Display uploaded files as elegant thumbnails
-
-### Step 4: Legal & Logistics
-**Heading**: "Almost there..."
-- Contract review section (placeholder text area showing contract summary)
-- "Sign via DocuSign" button (polished placeholder with coming soon tooltip)
-- Terms acceptance checkbox
-- Final notes field
+### Client Profile Drawer/Modal
+When "View Full Profile" is clicked, a slide-out sheet displays:
+- All basic info (company, contact, socials)
+- Project vision text
+- Services needed (visual tags)
+- Brand assets gallery (thumbnails from storage)
+- Notes field
+- "Create Tasks" action button
 
 ---
 
-## Backend Changes
+## New Components
 
-### Database Additions
+### Files to Create
 
-**New table: `onboarding_drafts`**
-Stores work-in-progress onboarding data:
-```
-- id (UUID, primary key)
-- user_id (UUID, references auth.users)
-- step (INTEGER, current step 1-4)
-- data (JSONB, form data for all steps)
-- created_at, updated_at
-```
-
-**Extended `clients` table columns**:
-- `instagram_handle` (TEXT)
-- `linkedin_url` (TEXT)
-- `website_url` (TEXT)
-- `project_goals` (TEXT)
-- `services_needed` (TEXT[]) - array of selected services
-- `brand_assets_folder` (TEXT) - storage path reference
-- `onboarded_by` (UUID) - which user completed onboarding
-- `onboarded_at` (TIMESTAMP)
-
-**New table: `notifications`**
-For alerting Admin/Staff of completed onboarding:
-```
-- id (UUID)
-- user_id (UUID, recipient)
-- type (TEXT, e.g., 'client_onboarded')
-- title, message (TEXT)
-- data (JSONB, metadata like client_id)
-- read (BOOLEAN)
-- created_at
-```
-
-### Storage Bucket
-- Create `client-assets` bucket
-- RLS: Admin/Staff can read all, clients can read their own folder
-
-### RLS Policies
-- `onboarding_drafts`: Users can manage their own drafts
-- `notifications`: Users can read their own notifications, Admin/Staff can create
-
----
-
-## New Files to Create
-
-### Pages
-- `src/pages/Onboarding.tsx` - Main wizard container with step state
-
-### Components
 ```text
-src/components/onboarding/
-  ├── OnboardingLayout.tsx      - Clean centered layout without sidebar
-  ├── OnboardingProgress.tsx    - Step indicator bar
-  ├── StepBasics.tsx            - Step 1 form
-  ├── StepProjectVision.tsx     - Step 2 with multi-select
-  ├── StepBrandAssets.tsx       - Step 3 with drag-drop
-  ├── StepLegal.tsx             - Step 4 with DocuSign placeholder
-  ├── ServiceCard.tsx           - Toggle card for service selection
-  └── FileDropzone.tsx          - Drag & drop component with preview
+src/components/dashboard/
+  ├── OnboardingQueue.tsx          - Section wrapper with query
+  ├── OnboardingSubmissionCard.tsx - Individual submission card
+  └── ClientProfileSheet.tsx       - Detailed client view drawer
 ```
 
-### Hooks
-- `src/hooks/useOnboardingDraft.ts` - Auto-save/load draft from database
-- `src/hooks/useFileUpload.ts` - Handle file uploads to storage
+### Component Details
+
+**OnboardingQueue.tsx**
+- Fetches recent clients (onboarded_at DESC, limit 5)
+- Shows loading skeleton during fetch
+- Empty state when no recent submissions
+- "View All" links to full list (future enhancement)
+- Only renders for Admin/Staff roles
+
+**OnboardingSubmissionCard.tsx**
+- Displays: Company name, contact name, services (as tags), truncated vision
+- Relative timestamp ("2 hours ago", "Yesterday")
+- Two action buttons: View Profile, Start Task Setup
+- Staggered animation on mount
+
+**ClientProfileSheet.tsx**
+- Uses Radix Sheet component (slide from right)
+- Complete client information display
+- Brand assets as thumbnail gallery
+- "Create First Task" button that navigates to project workspace
+
+---
+
+## Hooks & Data Fetching
+
+### New Hook: useRecentOnboardings.ts
+```typescript
+// Fetches clients with onboarded_at in descending order
+// Includes related project data
+// Only accessible by Admin/Staff (RLS enforced)
+```
+
+### New Hook: useUserRole.ts
+```typescript
+// Fetches current user's role from user_roles table
+// Caches with React Query
+// Returns: { role: 'admin' | 'staff' | 'client', loading: boolean }
+```
+
+---
+
+## Dashboard Integration
+
+### Modified Files
+
+**src/pages/Index.tsx**
+- Import useUserRole hook
+- Conditionally render OnboardingQueue for admin/staff
+- Position above the existing dual-stream layout
+- Adjust layout grid when queue is present
+
+**src/components/dashboard/QuickActions.tsx**
+- Add "View Onboarding Queue" quick action for staff (optional)
+
+---
+
+## Role-Based Visibility
+
+| Element | Admin | Staff (Frankie) | Client |
+|---------|-------|-----------------|--------|
+| Onboarding Queue | Yes | Yes | No |
+| Client Profile | Yes | Yes | No |
+| Start Task Setup | Yes | Yes | No |
+| Internal Task Notes | Yes | Yes | No |
+| Financials | Yes | No | No |
+| HR Tabs | Yes | No | No |
+
+The Onboarding Queue and Client Profile are available to both Admin and Staff. Per the custom knowledge, Frankie should never see Financials or HR (which will be in the Vault), and Clients should never see Internal Task Notes (already enforced via RLS on tasks table).
+
+---
+
+## Data Structure
+
+### Query for OnboardingQueue
+```sql
+SELECT 
+  c.id,
+  c.company,
+  c.name as contact_name,
+  c.email,
+  c.services_needed,
+  c.project_goals,
+  c.brand_assets_folder,
+  c.onboarded_at,
+  p.id as project_id,
+  p.title as project_title
+FROM clients c
+LEFT JOIN projects p ON p.client_id = c.id
+WHERE c.onboarded_at IS NOT NULL
+ORDER BY c.onboarded_at DESC
+LIMIT 5
+```
+
+This query is protected by existing RLS policies on the `clients` table that only allow Admin/Staff to view.
 
 ---
 
 ## Technical Details
 
-### Autosave Logic
-- Debounced save (2 seconds after last change)
-- Visual indicator: "Saving..." / "Saved" with checkmark
-- On page load: Check for existing draft and restore
+### React Query Integration
+- `useQuery` for fetching onboarding submissions
+- Stale time of 30 seconds for fresh data
+- Refetch on window focus
 
-### Animations (Framer Motion)
-- Step transitions: Fade + subtle slide
-- Form fields: Staggered fade-in on step entry
-- Upload zone: Scale on drag-over
-- Progress bar: Smooth width transition
+### Animation Sequence
+1. Section header fades in first
+2. Cards stagger in with 100ms delay each
+3. Sheet slides from right with 300ms transition
 
-### Form Validation (Zod + React Hook Form)
-- Step-by-step validation before proceeding
-- Inline error messages with editorial styling
-- Required fields marked with subtle asterisk
-
-### Completion Flow
-1. User clicks "Complete Onboarding" on Step 4
-2. Create `clients` record with all collected data
-3. Create initial `projects` record linked to client
-4. Add user as `project_member` with collaborator role
-5. Create `notifications` for Admin + Staff users
-6. Redirect to new project workspace (or dashboard)
-
----
-
-## Files Modified
-
-### Routing
-- `src/App.tsx` - Add `/onboarding` route
-
-### Navigation (Optional Enhancement)
-- Add "Onboard Client" to QuickActions for Admin/Staff
+### Responsive Behavior
+- Full-width cards on mobile
+- Sheet becomes full-screen modal on mobile
+- Touch-friendly tap targets
 
 ---
 
 ## Implementation Sequence
 
-1. **Database Migration**: Create new tables, extend clients, create storage bucket
-2. **OnboardingLayout + Progress**: Centered layout, step indicator
-3. **Step 1 (Basics)**: Form with validation, autosave hook
-4. **Step 2 (Vision)**: Multi-select service cards
-5. **Step 3 (Assets)**: File upload component with storage integration
-6. **Step 4 (Legal)**: DocuSign placeholder, completion logic
-7. **Notifications**: Alert Admin/Staff on completion
-8. **Polish**: Animations, empty states, responsive design
+1. **Create useUserRole hook** - Foundation for role-based rendering
+2. **Create useRecentOnboardings hook** - Data fetching with React Query
+3. **Build OnboardingSubmissionCard** - Individual card component
+4. **Build ClientProfileSheet** - Detailed view drawer
+5. **Build OnboardingQueue** - Section wrapper with empty state
+6. **Integrate into Index.tsx** - Conditional rendering for Admin/Staff
+7. **Add animations** - Framer Motion polish
 
 ---
 
-## Role-Based Behavior
+## Empty & Loading States
 
-- **Admin/Staff**: Can access onboarding to create clients on behalf of prospects
-- **Clients (Invited)**: Will use onboarding as their first experience after accepting invite
+### Loading State
+Skeleton cards matching the OnboardingSubmissionCard layout
 
-The wizard works for both self-onboarding and Admin-initiated client creation.
+### Empty State
+```text
++----------------------------------------------------+
+|                                                    |
+|     [Clipboard Icon]                               |
+|                                                    |
+|     No recent onboardings                          |
+|     New client submissions will appear here.       |
+|                                                    |
++----------------------------------------------------+
+```
 
+---
+
+## Future Enhancements (Not in Scope)
+
+- Full onboarding list page with filtering
+- Direct task creation from the profile sheet
+- Real-time updates when new clients onboard
+- Email notification integration
