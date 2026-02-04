@@ -8,7 +8,8 @@ interface OnboardingLayoutProps {
 export function OnboardingLayout({ children }: OnboardingLayoutProps) {
   return (
     <div className="min-h-screen bg-background">
-      <div className="mx-auto max-w-2xl px-6 py-12 md:py-20">
+      {/* Mobile-optimized padding */}
+      <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6 md:py-20">
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}

@@ -58,11 +58,11 @@ export function StudioCalendar() {
   };
 
   return (
-    <div className="flex h-full gap-6">
+    <div className="flex h-full flex-col gap-6 lg:flex-row">
       {/* Main Calendar */}
       <div className="flex-1">
         {/* Header */}
-        <div className="mb-6 flex items-center justify-between">
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-4">
             <Button
               variant="ghost"
@@ -72,7 +72,7 @@ export function StudioCalendar() {
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <h2 className="font-heading text-2xl font-semibold">
+            <h2 className="font-heading text-xl font-semibold sm:text-2xl">
               {format(currentMonth, "MMMM yyyy")}
             </h2>
             <Button
@@ -93,17 +93,17 @@ export function StudioCalendar() {
               className="gap-2"
             >
               <Share2 className="h-4 w-4" />
-              Share
+              <span className="hidden sm:inline">Share</span>
             </Button>
             <Button size="sm" onClick={handleNewEvent} className="gap-2">
               <Plus className="h-4 w-4" />
-              New Event
+              <span className="hidden sm:inline">New Event</span>
             </Button>
           </div>
         </div>
 
-        {/* Calendar Grid */}
-        <div className="rounded-lg border border-border bg-card">
+        {/* Calendar Grid - Desktop */}
+        <div className="hidden rounded-lg border border-border bg-card md:block">
           {/* Day Headers */}
           <div className="grid grid-cols-7 border-b border-border">
             {DAYS_OF_WEEK.map((day) => (
@@ -131,7 +131,7 @@ export function StudioCalendar() {
                   animate={{ opacity: 1 }}
                   transition={{ delay: index * 0.01 }}
                   className={cn(
-                    "min-h-[120px] border-b border-r border-border p-2 transition-colors",
+                    "min-h-[100px] border-b border-r border-border p-2 transition-colors lg:min-h-[120px]",
                     !isCurrentMonth && "bg-muted/30",
                     isSelected && "bg-primary/5",
                     "cursor-pointer hover:bg-muted/50"
@@ -152,7 +152,7 @@ export function StudioCalendar() {
 
                   {/* Event Cards */}
                   <div className="mt-1 space-y-1">
-                    {dayBookings.slice(0, 3).map((booking) => (
+                    {dayBookings.slice(0, 2).map((booking) => (
                       <StudioEventCard
                         key={booking.id}
                         booking={booking}
@@ -160,9 +160,9 @@ export function StudioCalendar() {
                         compact
                       />
                     ))}
-                    {dayBookings.length > 3 && (
+                    {dayBookings.length > 2 && (
                       <div className="text-xs text-muted-foreground">
-                        +{dayBookings.length - 3} more
+                        +{dayBookings.length - 2} more
                       </div>
                     )}
                   </div>
@@ -171,18 +171,92 @@ export function StudioCalendar() {
             })}
           </div>
         </div>
+
+        {/* Calendar List - Mobile */}
+        <div className="space-y-3 md:hidden">
+          {days.map((day) => {
+            const isToday = isSameDay(day, new Date());
+            const isSelected = selectedDate && isSameDay(day, selectedDate);
+            const dayBookings = getBookingsForDate(day);
+
+            if (dayBookings.length === 0 && !isToday && !isSelected) {
+              return null;
+            }
+
+            return (
+              <motion.div
+                key={day.toISOString()}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className={cn(
+                  "rounded-lg border border-border p-4",
+                  isToday && "border-primary/50 bg-primary/5",
+                  isSelected && "ring-2 ring-primary"
+                )}
+                onClick={() => handleDateClick(day)}
+              >
+                <div className="mb-3 flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">{format(day, "EEEE")}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {format(day, "MMMM d, yyyy")}
+                    </p>
+                  </div>
+                  {isToday && (
+                    <span className="rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-primary-foreground">
+                      Today
+                    </span>
+                  )}
+                </div>
+
+                {dayBookings.length > 0 ? (
+                  <div className="space-y-2">
+                    {dayBookings.map((booking) => (
+                      <StudioEventCard
+                        key={booking.id}
+                        booking={booking}
+                        onClick={() => handleEditEvent(booking)}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No bookings</p>
+                )}
+              </motion.div>
+            );
+          })}
+
+          {/* Show empty state if no upcoming bookings */}
+          {days.every((day) => getBookingsForDate(day).length === 0) && (
+            <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border py-12 text-center">
+              <p className="text-sm text-muted-foreground">
+                No bookings this month
+              </p>
+              <Button
+                size="sm"
+                className="mt-4"
+                onClick={handleNewEvent}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Create Booking
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Sidebar */}
-      <StudioSidebar
-        selectedDate={selectedDate}
-        bookings={selectedDate ? getBookingsForDate(selectedDate) : []}
-        onEditBooking={handleEditEvent}
-        onNewBooking={() => {
-          setEditingBooking(null);
-          setIsEventDialogOpen(true);
-        }}
-      />
+      {/* Sidebar - Hidden on mobile, shown in modal when date selected */}
+      <div className="hidden lg:block">
+        <StudioSidebar
+          selectedDate={selectedDate}
+          bookings={selectedDate ? getBookingsForDate(selectedDate) : []}
+          onEditBooking={handleEditEvent}
+          onNewBooking={() => {
+            setEditingBooking(null);
+            setIsEventDialogOpen(true);
+          }}
+        />
+      </div>
 
       {/* Dialogs */}
       <StudioEventDialog

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
-import { Loader2 } from "lucide-react";
+import { Loader2, FileSignature, AlertCircle } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -20,8 +20,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useStudioBookings, StudioBooking, CreateBookingData } from "@/hooks/useStudioBookings";
 import { checkBookingConflicts } from "@/hooks/useBookingConflicts";
+import { useSignatureRequests } from "@/hooks/useSignatureRequests";
 import { toast } from "sonner";
 
 interface StudioEventDialogProps {
@@ -51,7 +53,10 @@ export function StudioEventDialog({
   defaultDate,
 }: StudioEventDialogProps) {
   const { createBooking, updateBooking, deleteBooking } = useStudioBookings();
+  const { createSignatureRequest } = useSignatureRequests();
   const [isChecking, setIsChecking] = useState(false);
+  const [clientEmail, setClientEmail] = useState("");
+  const [clientName, setClientName] = useState("");
 
   const [formData, setFormData] = useState<CreateBookingData>({
     event_name: "",
@@ -115,7 +120,24 @@ export function StudioEventDialog({
       if (booking) {
         await updateBooking.mutateAsync({ id: booking.id, ...formData });
       } else {
-        await createBooking.mutateAsync(formData);
+        // Create booking
+        const newBooking = await createBooking.mutateAsync(formData);
+        
+        // If client info provided, send signature request for studio rules
+        if (clientEmail && clientName && newBooking) {
+          try {
+            await createSignatureRequest.mutateAsync({
+              bookingId: newBooking.id,
+              recipientEmail: clientEmail,
+              recipientName: clientName,
+              documentType: "studio_rules",
+            });
+            toast.success("Studio rules sent for signing");
+          } catch (sigError) {
+            console.error("Signature request failed:", sigError);
+            // Don't block booking creation if signature fails
+          }
+        }
       }
 
       onOpenChange(false);
@@ -161,6 +183,44 @@ export function StudioEventDialog({
               }
             />
           </div>
+
+          {/* Client Info for Signature Request - Only for new bookings */}
+          {!booking && (
+            <div className="space-y-4 rounded-lg border border-border/50 bg-muted/30 p-4">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <FileSignature className="h-4 w-4 text-primary" />
+                Client Signature (Optional)
+              </div>
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription className="text-xs">
+                  Add client details to automatically send Studio Rules for signing.
+                  Booking status will remain "Pending" until signed.
+                </AlertDescription>
+              </Alert>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="client_name">Client Name</Label>
+                  <Input
+                    id="client_name"
+                    placeholder="John Doe"
+                    value={clientName}
+                    onChange={(e) => setClientName(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="client_email">Client Email</Label>
+                  <Input
+                    id="client_email"
+                    type="email"
+                    placeholder="client@example.com"
+                    value={clientEmail}
+                    onChange={(e) => setClientEmail(e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
