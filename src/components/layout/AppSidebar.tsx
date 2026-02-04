@@ -1,4 +1,4 @@
-import { LayoutDashboard, FolderKanban, Calendar, Lock, ChevronLeft, ChevronRight } from "lucide-react";
+import { LayoutDashboard, FolderKanban, Calendar, Lock, ChevronLeft, ChevronRight, Settings } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import {
@@ -29,6 +29,7 @@ const navItems: NavItem[] = [
   { title: "PROJECTS", url: "/projects", icon: FolderKanban },
   { title: "STUDIO", url: "/studio", icon: Calendar },
   { title: "VAULT", url: "/vault", icon: Lock, adminOnly: true },
+  { title: "SETTINGS", url: "/settings/integrations", icon: Settings },
 ];
 
 export function AppSidebar() {
