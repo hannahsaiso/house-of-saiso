@@ -16,7 +16,7 @@ import { Project, useProjects } from "@/hooks/useProjects";
 import { DesignTab } from "./tabs/DesignTab";
 import { ResourcesTab } from "./tabs/ResourcesTab";
 import { DocumentsTab } from "./tabs/DocumentsTab";
-import { TasksTab } from "./tabs/TasksTab";
+import { WeeklyWorkflow } from "./WeeklyWorkflow";
 import { useUserRole } from "@/hooks/useUserRole";
 import {
   AlertDialog,
@@ -131,7 +131,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
         </TabsList>
 
         <TabsContent value="tasks" className="mt-6">
-          <TasksTab projectId={project.id} />
+          <WeeklyWorkflow projectId={project.id} />
         </TabsContent>
 
         <TabsContent value="design" className="mt-6">

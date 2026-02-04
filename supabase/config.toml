@@ -2,3 +2,9 @@ project_id = "zvoelshrluaotjrmxzho"
 
 [functions.docusign-signature]
 verify_jwt = false
+
+[functions.google-oauth-callback]
+verify_jwt = false
+
+[functions.parse-booking-emails]
+verify_jwt = false

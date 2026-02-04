@@ -2,13 +2,22 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { motion } from "framer-motion";
 import { Outlet, useLocation, Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { useUserRole } from "@/hooks/useUserRole";
 
 const settingsNav = [
+  { label: "Profile", href: "/settings/profile" },
+  { label: "Team", href: "/settings/team", adminOnly: true },
   { label: "Integrations", href: "/settings/integrations" },
 ];
 
 const Settings = () => {
+  const { isAdmin } = useUserRole();
   const location = useLocation();
+
+  const filteredNav = settingsNav.filter((item) => {
+    if (item.adminOnly && !isAdmin) return false;
+    return true;
+  });
 
   return (
     <DashboardLayout>
@@ -28,7 +37,7 @@ const Settings = () => {
         {/* Settings Navigation */}
         <nav className="mt-8 border-b border-border">
           <ul className="flex gap-8">
-            {settingsNav.map((item) => (
+            {filteredNav.map((item) => (
               <li key={item.href}>
                 <Link
                   to={item.href}
