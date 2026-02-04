@@ -3,6 +3,8 @@ import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { ProjectCard } from "@/components/dashboard/ProjectCard";
 import { StudioBookingCard } from "@/components/dashboard/StudioBookingCard";
 import { QuickActions } from "@/components/dashboard/QuickActions";
+import { OnboardingQueue } from "@/components/dashboard/OnboardingQueue";
+import { useUserRole } from "@/hooks/useUserRole";
 import { motion } from "framer-motion";
 
 // Mock data - will be replaced with Supabase queries
@@ -58,15 +60,20 @@ const mockBookings = [
 ];
 
 const Index = () => {
+  const { role, isAdminOrStaff, isLoading: roleLoading } = useUserRole();
+
   return (
     <DashboardLayout>
       <div className="mx-auto max-w-7xl">
-        <DashboardHeader userName="there" userRole="admin" />
+        <DashboardHeader userName="there" userRole={role || "admin"} />
 
         {/* Quick Actions */}
         <div className="mb-10">
-          <QuickActions userRole="admin" />
+          <QuickActions userRole={role || "admin"} />
         </div>
+
+        {/* Onboarding Queue - Admin/Staff only */}
+        {!roleLoading && isAdminOrStaff && <OnboardingQueue />}
 
         {/* Dual Stream Layout */}
         <div className="grid gap-10 lg:grid-cols-2">
