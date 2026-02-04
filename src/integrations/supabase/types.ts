@@ -16,37 +16,121 @@ export type Database = {
     Tables: {
       clients: {
         Row: {
+          brand_assets_folder: string | null
           company: string | null
           created_at: string
           created_by: string | null
           email: string | null
           id: string
+          instagram_handle: string | null
+          linkedin_url: string | null
           name: string
           notes: string | null
+          onboarded_at: string | null
+          onboarded_by: string | null
           phone: string | null
+          project_goals: string | null
+          services_needed: string[] | null
           updated_at: string
+          website_url: string | null
         }
         Insert: {
+          brand_assets_folder?: string | null
           company?: string | null
           created_at?: string
           created_by?: string | null
           email?: string | null
           id?: string
+          instagram_handle?: string | null
+          linkedin_url?: string | null
           name: string
           notes?: string | null
+          onboarded_at?: string | null
+          onboarded_by?: string | null
           phone?: string | null
+          project_goals?: string | null
+          services_needed?: string[] | null
           updated_at?: string
+          website_url?: string | null
         }
         Update: {
+          brand_assets_folder?: string | null
           company?: string | null
           created_at?: string
           created_by?: string | null
           email?: string | null
           id?: string
+          instagram_handle?: string | null
+          linkedin_url?: string | null
           name?: string
           notes?: string | null
+          onboarded_at?: string | null
+          onboarded_by?: string | null
           phone?: string | null
+          project_goals?: string | null
+          services_needed?: string[] | null
           updated_at?: string
+          website_url?: string | null
+        }
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          created_at: string
+          data: Json | null
+          id: string
+          message: string | null
+          read: boolean
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          data?: Json | null
+          id?: string
+          message?: string | null
+          read?: boolean
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          data?: Json | null
+          id?: string
+          message?: string | null
+          read?: boolean
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      onboarding_drafts: {
+        Row: {
+          created_at: string
+          data: Json
+          id: string
+          step: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          data?: Json
+          id?: string
+          step?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          data?: Json
+          id?: string
+          step?: number
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
