@@ -74,6 +74,69 @@ export type Database = {
         }
         Relationships: []
       }
+      financial_entries: {
+        Row: {
+          amount: number
+          client_id: string | null
+          created_at: string | null
+          created_by: string | null
+          date: string
+          description: string | null
+          id: string
+          payment_status: string | null
+          project_id: string | null
+          service_type: string
+          stripe_invoice_id: string | null
+          stripe_payment_link: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          amount: number
+          client_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          date: string
+          description?: string | null
+          id?: string
+          payment_status?: string | null
+          project_id?: string | null
+          service_type: string
+          stripe_invoice_id?: string | null
+          stripe_payment_link?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          amount?: number
+          client_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          date?: string
+          description?: string | null
+          id?: string
+          payment_status?: string | null
+          project_id?: string | null
+          service_type?: string
+          stripe_invoice_id?: string | null
+          stripe_payment_link?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financial_entries_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financial_entries_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           created_at: string
@@ -133,6 +196,41 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      performance_logs: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          id: string
+          log_date: string | null
+          note: string
+          staff_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          log_date?: string | null
+          note: string
+          staff_id: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          log_date?: string | null
+          note?: string
+          staff_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "performance_logs_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -240,6 +338,69 @@ export type Database = {
           },
         ]
       }
+      public_calendar_tokens: {
+        Row: {
+          created_at: string | null
+          created_by: string
+          expires_at: string | null
+          id: string
+          token: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by: string
+          expires_at?: string | null
+          id?: string
+          token?: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string
+          expires_at?: string | null
+          id?: string
+          token?: string
+        }
+        Relationships: []
+      }
+      staff_profiles: {
+        Row: {
+          contract_file_path: string | null
+          created_at: string | null
+          email: string | null
+          full_name: string
+          hire_date: string | null
+          id: string
+          phone: string | null
+          role: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          contract_file_path?: string | null
+          created_at?: string | null
+          email?: string | null
+          full_name: string
+          hire_date?: string | null
+          id?: string
+          phone?: string | null
+          role?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          contract_file_path?: string | null
+          created_at?: string | null
+          email?: string | null
+          full_name?: string
+          hire_date?: string | null
+          id?: string
+          phone?: string | null
+          role?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       studio_bookings: {
         Row: {
           booked_by: string | null
@@ -249,10 +410,12 @@ export type Database = {
           date: string
           end_time: string
           equipment_notes: string | null
+          event_name: string | null
           id: string
           is_blocked: boolean
           notes: string | null
           start_time: string
+          status: string | null
           updated_at: string
         }
         Insert: {
@@ -263,10 +426,12 @@ export type Database = {
           date: string
           end_time: string
           equipment_notes?: string | null
+          event_name?: string | null
           id?: string
           is_blocked?: boolean
           notes?: string | null
           start_time: string
+          status?: string | null
           updated_at?: string
         }
         Update: {
@@ -277,10 +442,12 @@ export type Database = {
           date?: string
           end_time?: string
           equipment_notes?: string | null
+          event_name?: string | null
           id?: string
           is_blocked?: boolean
           notes?: string | null
           start_time?: string
+          status?: string | null
           updated_at?: string
         }
         Relationships: [

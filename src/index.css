@@ -167,3 +167,17 @@
     transform: translateY(0);
   }
 }
+
+/* Financial Vault Dark Theme (Scoped) */
+.vault-theme {
+  --vault-background: 0 0% 12%;
+  --vault-foreground: 45 30% 90%;
+  --vault-accent: 43 65% 52%;
+  --vault-muted: 0 0% 50%;
+  --vault-muted-foreground: 0 0% 60%;
+  --vault-border: 0 0% 18%;
+  --vault-card: 0 0% 14%;
+  --vault-success: 145 40% 45%;
+  --vault-warning: 40 60% 50%;
+  --vault-danger: 0 50% 50%;
+}

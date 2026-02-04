@@ -1,5 +1,6 @@
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { motion } from "framer-motion";
+import { StudioCalendar } from "@/components/studio/StudioCalendar";
 
 const Studio = () => {
   return (
@@ -20,11 +21,8 @@ const Studio = () => {
           Book and manage studio space availability.
         </p>
 
-        {/* Placeholder for calendar */}
-        <div className="mt-10 flex min-h-[500px] items-center justify-center rounded-lg border border-dashed border-border">
-          <p className="text-sm text-muted-foreground">
-            Interactive calendar coming soon...
-          </p>
+        <div className="mt-8">
+          <StudioCalendar />
         </div>
       </motion.div>
     </DashboardLayout>
