@@ -13,6 +13,7 @@ import { StepBasics } from "@/components/onboarding/StepBasics";
 import { StepProjectVision } from "@/components/onboarding/StepProjectVision";
 import { StepBrandAssets } from "@/components/onboarding/StepBrandAssets";
 import { StepLegal } from "@/components/onboarding/StepLegal";
+import { SuccessAnimation } from "@/components/ui/success-animation";
 import { useOnboardingDraft } from "@/hooks/useOnboardingDraft";
 import { useFileUpload } from "@/hooks/useFileUpload";
 
@@ -51,6 +52,7 @@ export default function Onboarding() {
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
   const [clientId] = useState(() => crypto.randomUUID());
 
   const {
@@ -246,12 +248,8 @@ export default function Onboarding() {
       // Delete the draft
       await deleteDraft();
 
-      toast({
-        title: "Onboarding complete!",
-        description: "Welcome to House of Saiso. Your project workspace is ready.",
-      });
-
-      navigate("/");
+      // Show success animation
+      setShowSuccess(true);
     } catch (error: any) {
       console.error("Onboarding error:", error);
       toast({
@@ -290,6 +288,12 @@ export default function Onboarding() {
 
   return (
     <OnboardingLayout>
+      <SuccessAnimation
+        show={showSuccess}
+        message="Welcome to House of Saiso!"
+        onComplete={() => navigate("/")}
+      />
+      
       <OnboardingProgress currentStep={currentStep} totalSteps={TOTAL_STEPS} />
 
       <form onSubmit={handleSubmit(handleComplete)}>
@@ -331,8 +335,8 @@ export default function Onboarding() {
           </motion.div>
         </AnimatePresence>
 
-        {/* Navigation */}
-        <div className="mt-12 flex items-center justify-between">
+        {/* Navigation - Mobile optimized */}
+        <div className="mt-8 flex flex-col-reverse gap-4 sm:mt-12 sm:flex-row sm:items-center sm:justify-between">
           <Button
             type="button"
             variant="ghost"
@@ -344,9 +348,9 @@ export default function Onboarding() {
             Back
           </Button>
 
-          <div className="flex items-center gap-4">
-            {/* Save indicator */}
-            <span className="text-xs text-muted-foreground">
+          <div className="flex flex-col-reverse items-stretch gap-3 sm:flex-row sm:items-center sm:gap-4">
+            {/* Save indicator - Hidden on mobile, show at top on desktop */}
+            <span className="hidden text-xs text-muted-foreground sm:block">
               {saving ? (
                 <span className="flex items-center gap-1">
                   <Loader2 className="w-3 h-3 animate-spin" />
@@ -361,12 +365,12 @@ export default function Onboarding() {
             </span>
 
             {currentStep < TOTAL_STEPS ? (
-              <Button type="button" onClick={handleNext} className="gap-2">
+              <Button type="button" onClick={handleNext} className="w-full gap-2 sm:w-auto">
                 Continue
                 <ArrowRight className="w-4 h-4" />
               </Button>
             ) : (
-              <Button type="submit" disabled={isSubmitting} className="gap-2">
+              <Button type="submit" disabled={isSubmitting} className="w-full gap-2 sm:w-auto">
                 {isSubmitting ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />

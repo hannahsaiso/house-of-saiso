@@ -1,0 +1,203 @@
+import { useState } from "react";
+import { motion } from "framer-motion";
+import { Folder, Plus, ExternalLink, Trash2, FolderOpen } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { useProjectResources } from "@/hooks/useProjectResources";
+import { useUserRole } from "@/hooks/useUserRole";
+
+interface ResourcesTabProps {
+  projectId: string;
+}
+
+export function ResourcesTab({ projectId }: ResourcesTabProps) {
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [title, setTitle] = useState("");
+  const [url, setUrl] = useState("");
+  const [description, setDescription] = useState("");
+  const { driveLinks, addResource, removeResource, isLoading } = useProjectResources(projectId);
+  const { isAdminOrStaff } = useUserRole();
+
+  const handleAddLink = () => {
+    if (!title.trim() || !url.trim()) return;
+
+    addResource.mutate(
+      {
+        resource_type: "google_drive",
+        title: title.trim(),
+        url: url.trim(),
+        description: description.trim() || undefined,
+      },
+      {
+        onSuccess: () => {
+          setTitle("");
+          setUrl("");
+          setDescription("");
+          setIsDialogOpen(false);
+        },
+      }
+    );
+  };
+
+  if (isLoading) {
+    return (
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="h-32 animate-pulse rounded-lg bg-muted" />
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="font-heading text-lg font-semibold">Resources</h3>
+          <p className="text-sm text-muted-foreground">
+            Quick access to Google Drive folders and shared resources
+          </p>
+        </div>
+        {isAdminOrStaff && (
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm" className="gap-2">
+                <Plus className="h-4 w-4" />
+                Add Resource
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Add Resource Link</DialogTitle>
+                <DialogDescription>
+                  Add a Google Drive folder or other resource link for easy access.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="title">Title</Label>
+                  <Input
+                    id="title"
+                    placeholder="e.g., Brand Assets Folder"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="url">URL</Label>
+                  <Input
+                    id="url"
+                    placeholder="https://drive.google.com/drive/folders/..."
+                    value={url}
+                    onChange={(e) => setUrl(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="description">Description (optional)</Label>
+                  <Textarea
+                    id="description"
+                    placeholder="What's in this folder..."
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    rows={2}
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleAddLink} disabled={addResource.isPending}>
+                  {addResource.isPending ? "Adding..." : "Add Resource"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
+      </div>
+
+      {/* Resource Links */}
+      {driveLinks.length === 0 ? (
+        <Card className="border-dashed">
+          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+              <Folder className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <h4 className="font-medium">No resources yet</h4>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {isAdminOrStaff
+                ? "Add a Google Drive folder or resource link"
+                : "Shared resources will appear here"}
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {driveLinks.map((link, index) => (
+            <motion.div
+              key={link.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.05 }}
+            >
+              <Card className="group transition-all hover:border-primary/50 hover:shadow-md">
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                        <FolderOpen className="h-5 w-5 text-primary" />
+                      </div>
+                      <div className="min-w-0">
+                        <h4 className="font-medium leading-tight">{link.title}</h4>
+                        {link.description && (
+                          <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
+                            {link.description}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 gap-2"
+                      onClick={() => window.open(link.url, "_blank")}
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" />
+                      Open
+                    </Button>
+                    {isAdminOrStaff && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 shrink-0 text-destructive opacity-0 transition-opacity group-hover:opacity-100"
+                        onClick={() => removeResource.mutate(link.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

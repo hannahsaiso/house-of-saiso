@@ -4,6 +4,7 @@ import { ProjectCard } from "@/components/dashboard/ProjectCard";
 import { StudioBookingCard } from "@/components/dashboard/StudioBookingCard";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { OnboardingQueue } from "@/components/dashboard/OnboardingQueue";
+import { PendingSignaturesWidget } from "@/components/dashboard/PendingSignaturesWidget";
 import { useUserRole } from "@/hooks/useUserRole";
 import { motion } from "framer-motion";
 
@@ -74,6 +75,13 @@ const Index = () => {
 
         {/* Onboarding Queue - Admin/Staff only */}
         {!roleLoading && isAdminOrStaff && <OnboardingQueue />}
+
+        {/* Pending Signatures - Admin only */}
+        {!roleLoading && isAdminOrStaff && (
+          <div className="mb-10">
+            <PendingSignaturesWidget />
+          </div>
+        )}
 
         {/* Dual Stream Layout */}
         <div className="grid gap-10 lg:grid-cols-2">

@@ -1,1 +1,4 @@
 project_id = "zvoelshrluaotjrmxzho"
+
+[functions.docusign-signature]
+verify_jwt = false
