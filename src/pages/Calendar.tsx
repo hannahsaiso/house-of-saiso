@@ -6,6 +6,7 @@ import {
   Calendar as CalendarIcon,
   Circle,
   Loader2,
+  RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -39,10 +40,86 @@ interface CalendarEvent {
   color: string;
 }
 
+// Google Calendar events are fetched client-side only (privacy-first approach)
+// They are NOT stored in Supabase - streaming fetch directly to user's browser
+const useGoogleCalendarEvents = (currentMonth: Date, enabled: boolean) => {
+  return useQuery({
+    queryKey: ["google-calendar-streaming", currentMonth.toISOString()],
+    queryFn: async (): Promise<CalendarEvent[]> => {
+      const { data: session } = await supabase.auth.getSession();
+      if (!session.session) return [];
+
+      // Check if user has Google connected (just the token existence, not the token itself)
+      const { data: tokenRecord } = await supabase
+        .from("google_oauth_tokens")
+        .select("id")
+        .eq("user_id", session.session.user.id)
+        .single();
+
+      if (!tokenRecord) return [];
+
+      // Client-side streaming fetch from Google Calendar API via gateway
+      // Events are fetched on-the-fly and never stored in our database
+      const monthStart = startOfMonth(currentMonth);
+      const monthEnd = endOfMonth(currentMonth);
+
+      try {
+        const response = await fetch(
+          `https://gateway.lovable.dev/google_calendar/calendar/v3/calendars/primary/events?timeMin=${monthStart.toISOString()}&timeMax=${monthEnd.toISOString()}&singleEvents=true&orderBy=startTime`,
+          {
+            headers: {
+              Authorization: `Bearer ${session.session.access_token}`,
+            },
+          }
+        );
+
+        if (!response.ok) {
+          console.warn("Google Calendar fetch failed:", response.status);
+          return [];
+        }
+
+        const data = await response.json();
+        return (data.items || []).map((event: any) => ({
+          id: `google-${event.id}`,
+          title: event.summary || "Untitled",
+          date: event.start?.date || event.start?.dateTime?.split("T")[0],
+          startTime: event.start?.dateTime?.split("T")[1]?.substring(0, 5),
+          endTime: event.end?.dateTime?.split("T")[1]?.substring(0, 5),
+          type: "google" as const,
+          color: "hsl(var(--muted-foreground))",
+        }));
+      } catch (e) {
+        console.error("Failed to stream Google Calendar events:", e);
+        return [];
+      }
+    },
+    enabled,
+    staleTime: 1000 * 60 * 5, // Cache for 5 minutes client-side only
+    gcTime: 1000 * 60 * 10,
+  });
+};
+
 export default function UnifiedCalendar() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const { bookings, isLoading: bookingsLoading } = useStudioBookings(currentMonth);
   const { projects, isLoading: projectsLoading } = useProjects();
+
+  // Check if user has Google connected
+  const { data: hasGoogleConnection } = useQuery({
+    queryKey: ["google-connection-check"],
+    queryFn: async () => {
+      const { data: user } = await supabase.auth.getUser();
+      if (!user.user) return false;
+
+      const { data } = await supabase
+        .from("google_oauth_tokens")
+        .select("id")
+        .eq("user_id", user.user.id)
+        .single();
+
+      return !!data;
+    },
+  });
 
   // Fetch user tasks with due dates
   const { data: tasks, isLoading: tasksLoading } = useQuery({
@@ -63,54 +140,13 @@ export default function UnifiedCalendar() {
     },
   });
 
-  // Fetch Google Calendar events (if connected)
-  const { data: googleEvents, isLoading: googleLoading } = useQuery({
-    queryKey: ["google-calendar-events", currentMonth.toISOString()],
-    queryFn: async () => {
-      const { data: user } = await supabase.auth.getUser();
-      if (!user.user) return [];
-
-      // Check if user has Google connected
-      const { data: token } = await supabase
-        .from("google_oauth_tokens")
-        .select("id")
-        .eq("user_id", user.user.id)
-        .single();
-
-      if (!token) return [];
-
-      // Fetch from Google Calendar API via gateway
-      const monthStart = startOfMonth(currentMonth);
-      const monthEnd = endOfMonth(currentMonth);
-
-      try {
-        const response = await fetch(
-          `https://gateway.lovable.dev/google_calendar/calendar/v3/calendars/primary/events?timeMin=${monthStart.toISOString()}&timeMax=${monthEnd.toISOString()}&singleEvents=true&orderBy=startTime`,
-          {
-            headers: {
-              Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
-            },
-          }
-        );
-
-        if (!response.ok) return [];
-
-        const data = await response.json();
-        return (data.items || []).map((event: any) => ({
-          id: event.id,
-          title: event.summary || "Untitled",
-          date: event.start?.date || event.start?.dateTime?.split("T")[0],
-          startTime: event.start?.dateTime?.split("T")[1]?.substring(0, 5),
-          endTime: event.end?.dateTime?.split("T")[1]?.substring(0, 5),
-          type: "google" as const,
-          color: "hsl(var(--muted-foreground))",
-        }));
-      } catch (e) {
-        console.error("Failed to fetch Google Calendar events:", e);
-        return [];
-      }
-    },
-  });
+  // Privacy-first: Stream Google Calendar events directly to browser (no database storage)
+  const { 
+    data: googleEvents, 
+    isLoading: googleLoading,
+    refetch: refetchGoogle,
+    isFetching: googleFetching 
+  } = useGoogleCalendarEvents(currentMonth, !!hasGoogleConnection);
 
   // Combine all events
   const allEvents = useMemo<CalendarEvent[]>(() => {
@@ -155,7 +191,7 @@ export default function UnifiedCalendar() {
       }
     });
 
-    // Google Calendar events - Light Grey
+    // Google Calendar events - Light Grey (streaming, not stored)
     googleEvents?.forEach((event: CalendarEvent) => {
       events.push(event);
     });
@@ -210,10 +246,15 @@ export default function UnifiedCalendar() {
             <Circle className="h-3 w-3 fill-primary text-primary" />
             <span className="text-xs text-muted-foreground">Task</span>
           </div>
-          <div className="flex items-center gap-2">
-            <Circle className="h-3 w-3 fill-muted-foreground text-muted-foreground" />
-            <span className="text-xs text-muted-foreground">Google</span>
-          </div>
+          {hasGoogleConnection && (
+            <div className="flex items-center gap-2">
+              <Circle className="h-3 w-3 fill-muted-foreground text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">Google</span>
+              <Badge variant="outline" className="ml-1 text-[9px] px-1.5 py-0">
+                Streaming
+              </Badge>
+            </div>
+          )}
         </div>
 
         {/* Calendar Header */}
@@ -222,6 +263,17 @@ export default function UnifiedCalendar() {
             {format(currentMonth, "MMMM yyyy")}
           </h2>
           <div className="flex items-center gap-2">
+            {hasGoogleConnection && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => refetchGoogle()}
+                disabled={googleFetching}
+                title="Refresh Google Calendar"
+              >
+                <RefreshCw className={`h-4 w-4 ${googleFetching ? "animate-spin" : ""}`} />
+              </Button>
+            )}
             <Button
               variant="outline"
               size="icon"
@@ -299,8 +351,11 @@ export default function UnifiedCalendar() {
                               backgroundColor: `${event.color}15`,
                               color: event.color,
                             }}
-                            title={event.title}
+                            title={`${event.title}${event.type === "google" ? " (Google)" : ""}`}
                           >
+                            {event.type === "google" && (
+                              <span className="mr-1 opacity-60">G</span>
+                            )}
                             {event.startTime && (
                               <span className="font-medium">
                                 {event.startTime.substring(0, 5)}{" "}
@@ -321,6 +376,13 @@ export default function UnifiedCalendar() {
               </div>
             </CardContent>
           </Card>
+        )}
+
+        {/* Privacy Notice */}
+        {hasGoogleConnection && (
+          <p className="text-center text-xs text-muted-foreground">
+            Google Calendar events are streamed directly to your browser and are not stored in our database.
+          </p>
         )}
       </div>
     </DashboardLayout>

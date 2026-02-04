@@ -16,6 +16,7 @@ export default {
       fontFamily: {
         heading: ['Playfair Display', 'serif'],
         body: ['Inter', 'sans-serif'],
+        'mono-ledger': ['JetBrains Mono', 'monospace'],
       },
       letterSpacing: {
         'editorial': '0.2em',

@@ -17,7 +17,8 @@ export function MinimalistLedger() {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: "USD",
-      minimumFractionDigits: 0,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
     }).format(amount);
   };
 
@@ -31,50 +32,50 @@ export function MinimalistLedger() {
 
   if (entries.length === 0) {
     return (
-      <div className="py-12 text-center text-muted-foreground">
+      <div className="py-12 text-center text-muted-foreground font-heading">
         No financial entries recorded.
       </div>
     );
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border">
+    <div className="overflow-hidden rounded-lg border border-border/50">
       {/* Header */}
-      <div className="grid grid-cols-12 gap-4 border-b bg-muted/30 px-6 py-3">
-        <div className="col-span-2 text-xs font-medium uppercase tracking-editorial text-muted-foreground">
+      <div className="grid grid-cols-12 gap-4 border-b border-border/30 bg-muted/20 px-8 py-4">
+        <div className="col-span-2 text-xs font-heading font-medium uppercase tracking-editorial text-muted-foreground">
           Date
         </div>
-        <div className="col-span-3 text-xs font-medium uppercase tracking-editorial text-muted-foreground">
+        <div className="col-span-3 text-xs font-heading font-medium uppercase tracking-editorial text-muted-foreground">
           Client
         </div>
-        <div className="col-span-2 text-xs font-medium uppercase tracking-editorial text-muted-foreground">
+        <div className="col-span-2 text-xs font-heading font-medium uppercase tracking-editorial text-muted-foreground">
           Type
         </div>
-        <div className="col-span-2 text-xs font-medium uppercase tracking-editorial text-muted-foreground">
+        <div className="col-span-2 text-xs font-heading font-medium uppercase tracking-editorial text-muted-foreground">
           Description
         </div>
-        <div className="col-span-2 text-right text-xs font-medium uppercase tracking-editorial text-muted-foreground">
+        <div className="col-span-2 text-right text-xs font-heading font-medium uppercase tracking-editorial text-muted-foreground">
           Amount
         </div>
-        <div className="col-span-1 text-xs font-medium uppercase tracking-editorial text-muted-foreground">
+        <div className="col-span-1 text-xs font-heading font-medium uppercase tracking-editorial text-muted-foreground">
           Status
         </div>
       </div>
 
       {/* Rows */}
-      <div className="divide-y divide-border/50">
+      <div className="divide-y divide-border/30">
         {entries.slice(0, 15).map((entry) => (
           <div
             key={entry.id}
-            className="grid grid-cols-12 gap-4 px-6 py-4 transition-colors hover:bg-muted/20"
+            className="grid grid-cols-12 gap-4 px-8 py-5 transition-colors hover:bg-[hsl(45_30%_96%)] dark:hover:bg-muted/20"
           >
             <div className="col-span-2 flex items-center">
-              <span className="text-sm text-muted-foreground">
-                {format(new Date(entry.date), "MMM d, yyyy")}
+              <span className="font-mono-ledger text-sm text-muted-foreground tabular-nums">
+                {format(new Date(entry.date), "MMM dd, yyyy")}
               </span>
             </div>
             <div className="col-span-3 flex items-center">
-              <span className="font-medium text-sm truncate">
+              <span className="font-heading font-medium text-sm truncate">
                 {entry.client?.name || "—"}
               </span>
             </div>
@@ -82,29 +83,29 @@ export function MinimalistLedger() {
               <Badge
                 variant="outline"
                 className={cn(
-                  "capitalize text-[10px] border",
+                  "capitalize text-[10px] font-body border",
                   entry.service_type === "agency"
                     ? "border-primary/30 text-primary bg-primary/5"
-                    : "border-secondary/30 text-secondary-foreground bg-secondary/50"
+                    : "border-foreground/20 text-foreground bg-foreground/5"
                 )}
               >
                 {entry.service_type}
               </Badge>
             </div>
             <div className="col-span-2 flex items-center">
-              <span className="text-sm text-muted-foreground truncate">
+              <span className="text-sm text-muted-foreground truncate font-body">
                 {entry.description || "—"}
               </span>
             </div>
             <div className="col-span-2 flex items-center justify-end">
-              <span className="font-heading text-sm font-semibold">
+              <span className="font-mono-ledger text-sm font-semibold tabular-nums">
                 {formatCurrency(Number(entry.amount))}
               </span>
             </div>
             <div className="col-span-1 flex items-center">
               <Badge
                 variant="outline"
-                className={cn("capitalize text-[10px]", statusStyles[entry.payment_status])}
+                className={cn("capitalize text-[10px] font-body", statusStyles[entry.payment_status])}
               >
                 {entry.payment_status}
               </Badge>
@@ -114,8 +115,8 @@ export function MinimalistLedger() {
       </div>
 
       {entries.length > 15 && (
-        <div className="border-t bg-muted/20 px-6 py-3 text-center">
-          <span className="text-xs text-muted-foreground">
+        <div className="border-t border-border/30 bg-muted/10 px-8 py-4 text-center">
+          <span className="text-xs text-muted-foreground font-body">
             Showing 15 of {entries.length} entries
           </span>
         </div>
