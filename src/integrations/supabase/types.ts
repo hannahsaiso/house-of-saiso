@@ -262,6 +262,60 @@ export type Database = {
         }
         Relationships: []
       }
+      project_documents: {
+        Row: {
+          client_id: string | null
+          created_at: string | null
+          document_type: string
+          file_path: string
+          file_size: number | null
+          id: string
+          mime_type: string | null
+          project_id: string
+          title: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          client_id?: string | null
+          created_at?: string | null
+          document_type: string
+          file_path: string
+          file_size?: number | null
+          id?: string
+          mime_type?: string | null
+          project_id: string
+          title: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          client_id?: string | null
+          created_at?: string | null
+          document_type?: string
+          file_path?: string
+          file_size?: number | null
+          id?: string
+          mime_type?: string | null
+          project_id?: string
+          title?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_documents_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_documents_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_members: {
         Row: {
           created_at: string
@@ -294,8 +348,57 @@ export type Database = {
           },
         ]
       }
+      project_resources: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          display_order: number | null
+          id: string
+          project_id: string
+          resource_type: string
+          title: string
+          updated_at: string | null
+          url: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          display_order?: number | null
+          id?: string
+          project_id: string
+          resource_type: string
+          title: string
+          updated_at?: string | null
+          url: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          display_order?: number | null
+          id?: string
+          project_id?: string
+          resource_type?: string
+          title?: string
+          updated_at?: string | null
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_resources_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       projects: {
         Row: {
+          archived_at: string | null
+          archived_by: string | null
           client_id: string | null
           created_at: string
           created_by: string | null
@@ -307,6 +410,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          archived_at?: string | null
+          archived_by?: string | null
           client_id?: string | null
           created_at?: string
           created_by?: string | null
@@ -318,6 +423,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          archived_at?: string | null
+          archived_by?: string | null
           client_id?: string | null
           created_at?: string
           created_by?: string | null
@@ -361,6 +468,73 @@ export type Database = {
           token?: string
         }
         Relationships: []
+      }
+      signature_requests: {
+        Row: {
+          booking_id: string | null
+          client_id: string | null
+          created_at: string | null
+          created_by: string | null
+          document_type: string
+          docusign_envelope_id: string | null
+          id: string
+          project_id: string | null
+          signed_at: string | null
+          signed_document_path: string | null
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          booking_id?: string | null
+          client_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          document_type: string
+          docusign_envelope_id?: string | null
+          id?: string
+          project_id?: string | null
+          signed_at?: string | null
+          signed_document_path?: string | null
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          booking_id?: string | null
+          client_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          document_type?: string
+          docusign_envelope_id?: string | null
+          id?: string
+          project_id?: string | null
+          signed_at?: string | null
+          signed_document_path?: string | null
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "signature_requests_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "studio_bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "signature_requests_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "signature_requests_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       staff_profiles: {
         Row: {
