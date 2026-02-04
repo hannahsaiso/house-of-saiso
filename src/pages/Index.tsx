@@ -65,7 +65,7 @@ const Index = () => {
   return (
     <DashboardLayout>
       <div className="mx-auto max-w-7xl">
-        <DashboardHeader userName="there" userRole={role || "admin"} />
+        <DashboardHeader userRole={role || "admin"} />
 
         {/* Quick Actions */}
         <div className="mb-10">
