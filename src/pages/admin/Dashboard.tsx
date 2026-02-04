@@ -17,6 +17,8 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { useFinancialEntries } from "@/hooks/useFinancialEntries";
 import { useProjects } from "@/hooks/useProjects";
 import { AdminRevenueChart } from "@/components/admin/AdminRevenueChart";
+import { MinimalistLedger } from "@/components/admin/MinimalistLedger";
+import { RescheduleRequests } from "@/components/admin/RescheduleRequests";
 import { format } from "date-fns";
 import { toast } from "sonner";
 
@@ -224,8 +226,18 @@ export default function AdminDashboard() {
           </TabsContent>
         </Tabs>
 
-        {/* Project Health & Watchlist */}
-        <div className="grid gap-6 lg:grid-cols-2">
+        {/* Financial Ledger */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="font-heading text-lg">Financial Ledger</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <MinimalistLedger />
+          </CardContent>
+        </Card>
+
+        {/* Project Health, Watchlist & Reschedule Requests */}
+        <div className="grid gap-6 lg:grid-cols-3">
           {/* Active Projects */}
           <Card>
             <CardHeader>
@@ -299,7 +311,7 @@ export default function AdminDashboard() {
                           variant="outline"
                           className={
                             invoice.payment_status === "overdue"
-                              ? "border-red-500/50 text-red-600"
+                              ? "border-destructive/50 text-destructive"
                               : "border-amber-500/50 text-amber-600"
                           }
                         >
@@ -312,6 +324,9 @@ export default function AdminDashboard() {
               )}
             </CardContent>
           </Card>
+
+          {/* Reschedule Requests */}
+          <RescheduleRequests />
         </div>
       </div>
     </DashboardLayout>

@@ -8,6 +8,7 @@ const corsHeaders = {
 
 const LOVABLE_AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const BOOKING_KEYWORDS = ["booking", "reservation", "studio request", "book", "schedule", "rental"];
+const RESCHEDULE_KEYWORDS = ["reschedule", "move", "change date", "postpone", "new date", "different date"];
 
 interface ParsedBooking {
   client_name: string | null;
@@ -17,6 +18,8 @@ interface ParsedBooking {
   end_time: string | null;
   event_name: string | null;
   notes: string | null;
+  is_reschedule: boolean;
+  original_date: string | null;
 }
 
 async function parseBookingWithAI(emailContent: string, emailSubject: string): Promise<ParsedBooking> {
@@ -35,6 +38,8 @@ Extract the following details and return them as JSON:
 - end_time: The requested end time in HH:MM format (24-hour)
 - event_name: Brief description of what the booking is for (e.g., "Product Photography", "Video Shoot")
 - notes: Any additional requirements or equipment needs mentioned
+- is_reschedule: Boolean - true if this email is about rescheduling/moving an existing booking
+- original_date: If this is a reschedule request, the original booking date in YYYY-MM-DD format (null otherwise)
 
 If a field cannot be determined from the email, use null.
 For time ranges like "all day", use start_time: "09:00" and end_time: "18:00".
@@ -80,8 +85,15 @@ Only return valid JSON, no other text.`;
       end_time: null,
       event_name: null,
       notes: content,
+      is_reschedule: false,
+      original_date: null,
     };
   }
+}
+
+function containsRescheduleKeywords(text: string): boolean {
+  const lowerText = text.toLowerCase();
+  return RESCHEDULE_KEYWORDS.some(keyword => lowerText.includes(keyword));
 }
 
 function containsBookingKeywords(text: string): boolean {
@@ -123,6 +135,9 @@ serve(async (req) => {
 
       console.log(`Processing booking email: "${subject}"`);
 
+      // Check for reschedule keywords
+      const isRescheduleRequest = containsRescheduleKeywords(combinedText);
+
       // Parse booking details with AI
       const parsed = await parseBookingWithAI(body || "", subject || "");
 
@@ -159,7 +174,74 @@ serve(async (req) => {
         }
       }
 
-      // Create draft booking
+      // Handle reschedule request - check for existing booking and conflicts
+      if (parsed.is_reschedule || isRescheduleRequest) {
+        console.log(`Processing as reschedule request for date: ${parsed.date}`);
+        
+        // Check for conflicts on the new date
+        const { data: conflicts } = await supabase
+          .from("studio_bookings")
+          .select("id")
+          .eq("date", parsed.date)
+          .in("status", ["confirmed", "pending"])
+          .limit(1);
+
+        const hasConflict = conflicts && conflicts.length > 0;
+
+        // Create the reschedule request as a new booking with reschedule_requested status
+        const rescheduleNotes = JSON.stringify({
+          reschedule: {
+            originalDate: parsed.original_date,
+            hasConflict,
+          },
+          userNotes: parsed.notes,
+        });
+
+        const { data: booking, error } = await supabase
+          .from("studio_bookings")
+          .insert({
+            date: parsed.date,
+            start_time: parsed.start_time || "09:00",
+            end_time: parsed.end_time || "18:00",
+            booking_type: parsed.event_name || "Studio Rental",
+            event_name: parsed.event_name,
+            client_id: clientId,
+            notes: rescheduleNotes,
+            status: "reschedule_requested",
+            is_blocked: false,
+          })
+          .select()
+          .single();
+
+        if (error) {
+          console.error("Failed to create reschedule request:", error);
+          results.push({ subject, status: "error", error: error.message });
+        } else {
+          console.log(`Created reschedule request for ${parsed.date}`);
+          results.push({ subject, status: "reschedule_created", booking_id: booking.id, has_conflict: hasConflict });
+
+          // Create notification for admins
+          const { data: admins } = await supabase
+            .from("user_roles")
+            .select("user_id")
+            .eq("role", "admin");
+
+          if (admins) {
+            for (const admin of admins) {
+              await supabase.from("notifications").insert({
+                user_id: admin.user_id,
+                type: "reschedule_request",
+                title: "Reschedule Request",
+                message: `${parsed.client_name || "Unknown"} requested to reschedule to ${parsed.date}${hasConflict ? " (conflict detected)" : ""}`,
+                data: { booking_id: booking.id, has_conflict: hasConflict },
+              });
+            }
+          }
+        }
+        continue;
+      }
+
+      // Create draft booking (normal flow)
       const { data: booking, error } = await supabase
         .from("studio_bookings")
         .insert({
@@ -170,7 +252,7 @@ serve(async (req) => {
           event_name: parsed.event_name,
           client_id: clientId,
           notes: parsed.notes,
-          status: "pending", // Draft status for admin approval
+          status: "pending",
           is_blocked: false,
         })
         .select()

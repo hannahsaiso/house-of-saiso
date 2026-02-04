@@ -1,4 +1,4 @@
-import { LayoutDashboard, FolderKanban, Calendar, Lock, ChevronLeft, ChevronRight, Settings, Crown } from "lucide-react";
+import { LayoutDashboard, FolderKanban, Calendar, Lock, ChevronLeft, ChevronRight, Settings, Crown, CalendarDays } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import {
@@ -16,6 +16,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useUserRole } from "@/hooks/useUserRole";
+import { FinancialHealthWidget } from "./FinancialHealthWidget";
+import { Separator } from "@/components/ui/separator";
 
 interface NavItem {
   title: string;
@@ -28,6 +30,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { title: "DASHBOARD", url: "/", icon: LayoutDashboard },
   { title: "EXECUTIVE", url: "/admin/dashboard", icon: Crown, adminOnly: true },
+  { title: "CALENDAR", url: "/calendar", icon: CalendarDays },
   { title: "PROJECTS", url: "/projects", icon: FolderKanban },
   { title: "STUDIO", url: "/studio", icon: Calendar },
   { title: "VAULT", url: "/vault", icon: Lock, adminOrStaffOnly: true },
@@ -106,6 +109,16 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {/* Financial Health Widget - Admin only */}
+        {isAdmin && !collapsed && (
+          <>
+            <Separator className="my-4" />
+            <div className="px-3">
+              <FinancialHealthWidget />
+            </div>
+          </>
+        )}
       </SidebarContent>
 
       {/* Collapse Toggle */}

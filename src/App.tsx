@@ -15,6 +15,7 @@ import IntegrationsCallback from "./pages/settings/IntegrationsCallback";
 import ProfileSettings from "./pages/settings/ProfileSettings";
 import TeamManagement from "./pages/settings/TeamManagement";
 import AdminDashboard from "./pages/admin/Dashboard";
+import UnifiedCalendar from "./pages/Calendar";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -30,6 +31,7 @@ const App = () => (
           <Route path="/projects" element={<Projects />} />
           <Route path="/studio" element={<Studio />} />
           <Route path="/vault" element={<Vault />} />
+          <Route path="/calendar" element={<UnifiedCalendar />} />
           <Route path="/calendar/:token" element={<PublicCalendar />} />
           <Route path="/onboarding" element={<Onboarding />} />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />

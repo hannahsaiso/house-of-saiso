@@ -11,6 +11,9 @@ export interface StaffProfile {
   role: string | null;
   hire_date: string | null;
   contract_file_path: string | null;
+  avatar_url: string | null;
+  emergency_contact_name: string | null;
+  emergency_contact_phone: string | null;
   created_at: string;
   updated_at: string;
 }
