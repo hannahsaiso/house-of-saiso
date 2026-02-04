@@ -1,42 +1,69 @@
-import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Lock } from "lucide-react";
+import { Lock, Loader2 } from "lucide-react";
+import { useUserRole } from "@/hooks/useUserRole";
+import { toast } from "sonner";
+import { VaultLayout } from "@/components/vault/VaultLayout";
+import { VaultTabs } from "@/components/vault/VaultTabs";
+import { SidebarProvider } from "@/components/ui/sidebar";
 
 const Vault = () => {
-  return (
-    <DashboardLayout>
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="mx-auto max-w-7xl"
-      >
-        <div className="flex items-center gap-3">
-          <Lock className="h-5 w-5 text-primary" />
-          <p className="text-xs font-medium uppercase tracking-editorial text-muted-foreground">
-            Admin Only
-          </p>
-        </div>
-        <h1 className="mt-2 font-heading text-3xl font-semibold tracking-tight md:text-4xl">
-          Vault
-        </h1>
-        <p className="mt-2 text-muted-foreground">
-          Secure access to financials, HR documents, and client database.
-        </p>
+  const navigate = useNavigate();
+  const { isAdmin, isLoading } = useUserRole();
 
-        {/* Placeholder for vault sections */}
-        <div className="mt-10 grid gap-6 md:grid-cols-3">
-          {["Financials", "HR Documents", "Client Database"].map((section) => (
-            <div
-              key={section}
-              className="flex min-h-[200px] items-center justify-center rounded-lg border border-dashed border-border"
-            >
-              <p className="text-sm text-muted-foreground">{section}</p>
-            </div>
-          ))}
+  useEffect(() => {
+    if (!isLoading && !isAdmin) {
+      navigate("/");
+      toast.error("Access restricted to administrators");
+    }
+  }, [isAdmin, isLoading, navigate]);
+
+  // Show loading while checking role
+  if (isLoading) {
+    return (
+      <SidebarProvider>
+        <div className="flex min-h-screen items-center justify-center bg-[hsl(0_0%_12%)]">
+          <Loader2 className="h-8 w-8 animate-spin text-[hsl(43_65%_52%)]" />
         </div>
-      </motion.div>
-    </DashboardLayout>
+      </SidebarProvider>
+    );
+  }
+
+  // If not admin, don't render anything (redirect happening)
+  if (!isAdmin) {
+    return null;
+  }
+
+  return (
+    <SidebarProvider>
+      <VaultLayout>
+        <div className="mx-auto max-w-7xl p-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            <div className="mb-8 flex items-center gap-3">
+              <Lock className="h-5 w-5 text-[hsl(43_65%_52%)]" />
+              <p className="text-xs font-medium uppercase tracking-[0.2em] text-[hsl(0_0%_50%)]">
+                Admin Only
+              </p>
+            </div>
+            <h1 className="font-heading text-4xl font-semibold text-[hsl(45_30%_90%)]">
+              Vault
+            </h1>
+            <p className="mt-2 text-[hsl(0_0%_60%)]">
+              Secure access to financials, HR documents, and client database.
+            </p>
+
+            <div className="mt-10">
+              <VaultTabs />
+            </div>
+          </motion.div>
+        </div>
+      </VaultLayout>
+    </SidebarProvider>
   );
 };
 

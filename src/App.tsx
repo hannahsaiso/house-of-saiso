@@ -7,6 +7,7 @@ import Index from "./pages/Index";
 import Projects from "./pages/Projects";
 import Studio from "./pages/Studio";
 import Vault from "./pages/Vault";
+import PublicCalendar from "./pages/PublicCalendar";
 import Onboarding from "./pages/Onboarding";
 import NotFound from "./pages/NotFound";
 
@@ -23,6 +24,7 @@ const App = () => (
           <Route path="/projects" element={<Projects />} />
           <Route path="/studio" element={<Studio />} />
           <Route path="/vault" element={<Vault />} />
+          <Route path="/calendar/:token" element={<PublicCalendar />} />
           <Route path="/onboarding" element={<Onboarding />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

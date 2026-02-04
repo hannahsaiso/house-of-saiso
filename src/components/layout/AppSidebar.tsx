@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useUserRole } from "@/hooks/useUserRole";
 
 interface NavItem {
   title: string;
@@ -34,12 +35,10 @@ export function AppSidebar() {
   const { state, toggleSidebar } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
-
-  // TODO: Replace with actual role check from auth context
-  const userRole: "admin" | "staff" | "client" = "admin";
+  const { isAdmin, isLoading } = useUserRole();
 
   const filteredItems = navItems.filter((item) => {
-    if (item.adminOnly && userRole !== "admin") return false;
+    if (item.adminOnly && !isAdmin) return false;
     return true;
   });
 
