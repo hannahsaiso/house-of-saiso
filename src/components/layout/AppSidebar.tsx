@@ -1,4 +1,4 @@
- import { LayoutDashboard, FolderKanban, Calendar, Lock, ChevronLeft, ChevronRight, Settings, Crown, CalendarDays, Package, Mail } from "lucide-react";
+ import { LayoutDashboard, FolderKanban, Calendar, Lock, ChevronLeft, ChevronRight, Settings, Crown, CalendarDays, Package, Mail, HardDrive } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import {
@@ -30,15 +30,16 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { title: "DASHBOARD", url: "/", icon: LayoutDashboard },
-  { title: "EXECUTIVE", url: "/admin/dashboard", icon: Crown, adminOnly: true },
-   { title: "INBOX", url: "/inbox", icon: Mail, adminOrStaffOnly: true },
-  { title: "CALENDAR", url: "/calendar", icon: CalendarDays },
-  { title: "PROJECTS", url: "/projects", icon: FolderKanban },
-  { title: "STUDIO", url: "/studio", icon: Calendar },
-  { title: "INVENTORY", url: "/inventory", icon: Package, adminOrStaffOnly: true },
-  { title: "VAULT", url: "/vault", icon: Lock, adminOrStaffOnly: true },
-  { title: "SETTINGS", url: "/settings/integrations", icon: Settings },
+  { title: "Dashboard", url: "/", icon: LayoutDashboard },
+  { title: "Executive", url: "/admin/dashboard", icon: Crown, adminOnly: true },
+  { title: "Projects", url: "/projects", icon: FolderKanban },
+  { title: "Mail", url: "/inbox", icon: Mail, adminOrStaffOnly: true },
+  { title: "Calendar", url: "/calendar", icon: CalendarDays },
+  { title: "Studio", url: "/studio", icon: Calendar },
+  { title: "Drive", url: "/drive", icon: HardDrive, adminOrStaffOnly: true },
+  { title: "Inventory", url: "/inventory", icon: Package, adminOrStaffOnly: true },
+  { title: "Vault", url: "/vault", icon: Lock, adminOnly: true },
+  { title: "Settings", url: "/settings/integrations", icon: Settings },
 ];
 
 export function AppSidebar() {
@@ -93,7 +94,7 @@ export function AppSidebar() {
                       <NavLink
                         to={item.url}
                         className={cn(
-                          "flex items-center gap-3 rounded-sm px-3 py-3 text-xs font-medium tracking-editorial transition-all duration-200",
+                          "flex items-center gap-3 rounded-sm px-3 py-3 font-heading text-xs font-medium tracking-widest transition-all duration-200",
                           "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground",
                           isActive && "bg-sidebar-accent text-sidebar-primary"
                         )}

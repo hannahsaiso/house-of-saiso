@@ -1,15 +1,13 @@
- import { useState } from "react";
- import { motion, AnimatePresence } from "framer-motion";
+  import { useState } from "react";
+  import { motion } from "framer-motion";
  import { 
    Mail, 
    RefreshCw, 
    User, 
    ArrowLeft, 
    Reply, 
-   Loader2, 
-   AlertCircle,
-   Link2,
-   ExternalLink 
+    Loader2,
+    ExternalLink
  } from "lucide-react";
  import { DashboardLayout } from "@/components/layout/DashboardLayout";
  import { Button } from "@/components/ui/button";
@@ -19,9 +17,9 @@
  import { Card, CardContent } from "@/components/ui/card";
  import { useGmailInbox, useGmailThread, ParsedEmail } from "@/hooks/useGmailInbox";
  import { useGoogleOAuth } from "@/hooks/useGoogleOAuth";
- import { format, formatDistanceToNow, isToday, isYesterday } from "date-fns";
+  import { ConnectWorkspacePrompt } from "@/components/drive/ConnectWorkspacePrompt";
+  import { format, isToday, isYesterday } from "date-fns";
  import { cn } from "@/lib/utils";
- import { useNavigate } from "react-router-dom";
  
  function formatEmailDate(date: Date): string {
    if (isToday(date)) {
@@ -38,7 +36,6 @@
  }
  
  export default function Inbox() {
-   const navigate = useNavigate();
    const { emails, isLoading, refetch, isConnected, isTokenExpired } = useGmailInbox();
    const { connection } = useGoogleOAuth();
    const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
@@ -50,40 +47,7 @@
    if (!isConnected || isTokenExpired) {
      return (
        <DashboardLayout>
-         <div className="mx-auto max-w-2xl">
-           <motion.div
-             initial={{ opacity: 0, y: 20 }}
-             animate={{ opacity: 1, y: 0 }}
-             className="text-center py-20"
-           >
-             <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-muted">
-               <Mail className="h-10 w-10 text-muted-foreground" />
-             </div>
-             <h1 className="font-heading text-2xl font-semibold mb-2">
-               Connect Your Inbox
-             </h1>
-             <p className="text-muted-foreground mb-8 max-w-md mx-auto">
-               Link your Google Workspace account to view and manage your emails directly within the platform.
-             </p>
-             {isTokenExpired ? (
-               <div className="space-y-4">
-                 <div className="flex items-center justify-center gap-2 text-amber-600">
-                   <AlertCircle className="h-4 w-4" />
-                   <span className="text-sm">Your connection has expired</span>
-                 </div>
-                 <Button onClick={() => navigate("/settings/integrations")}>
-                   <Link2 className="mr-2 h-4 w-4" />
-                   Reconnect Account
-                 </Button>
-               </div>
-             ) : (
-               <Button onClick={() => navigate("/settings/integrations")}>
-                 <Link2 className="mr-2 h-4 w-4" />
-                 Connect Google Workspace
-               </Button>
-             )}
-           </motion.div>
-         </div>
+          <ConnectWorkspacePrompt feature="mail" />
        </DashboardLayout>
      );
    }
@@ -98,7 +62,7 @@
          >
            <div className="flex items-center justify-between">
              <div>
-               <p className="mb-2 text-xs font-medium uppercase tracking-editorial text-muted-foreground">
+                <p className="mb-2 font-heading text-xs font-medium uppercase tracking-widest text-muted-foreground">
                  Communications
                </p>
                <h1 className="font-heading text-3xl font-semibold tracking-tight">
