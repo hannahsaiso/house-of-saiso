@@ -275,6 +275,70 @@ export type Database = {
         }
         Relationships: []
       }
+      inventory_logs: {
+        Row: {
+          booking_id: string | null
+          created_at: string
+          created_by: string | null
+          description: string
+          id: string
+          inventory_id: string
+          log_date: string
+          log_type: string
+          performed_by: string | null
+          performed_by_name: string | null
+          project_id: string | null
+        }
+        Insert: {
+          booking_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description: string
+          id?: string
+          inventory_id: string
+          log_date?: string
+          log_type: string
+          performed_by?: string | null
+          performed_by_name?: string | null
+          project_id?: string | null
+        }
+        Update: {
+          booking_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          id?: string
+          inventory_id?: string
+          log_date?: string
+          log_type?: string
+          performed_by?: string | null
+          performed_by_name?: string | null
+          project_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_logs_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "studio_bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_logs_inventory_id_fkey"
+            columns: ["inventory_id"]
+            isOneToOne: false
+            referencedRelation: "inventory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_logs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inventory_reservations: {
         Row: {
           booking_id: string
