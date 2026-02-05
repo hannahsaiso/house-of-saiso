@@ -70,9 +70,9 @@ export function GoogleWorkspaceCard() {
     );
   }
 
-  return (
-    <Card className="border-border/50 transition-all hover:border-border">
-      <CardHeader className="pb-4">
+   return (
+     <div className="transition-all">
+       <div className="pb-4 px-6 pt-4">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-4">
             {/* Google Workspace Icon */}
@@ -106,9 +106,9 @@ export function GoogleWorkspaceCard() {
             </Badge>
           )}
         </div>
-      </CardHeader>
-
-      <CardContent className="space-y-6">
+       </div>
+ 
+       <div className="space-y-6 px-6 pb-6">
         {isConnected ? (
           <>
             {/* Connected Account Info */}
@@ -200,7 +200,7 @@ export function GoogleWorkspaceCard() {
             </Button>
           </>
         )}
-      </CardContent>
-    </Card>
+       </div>
+     </div>
   );
 }
