@@ -12,7 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
- import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useStudioBookings } from "@/hooks/useStudioBookings";
 import { useProjects } from "@/hooks/useProjects";
@@ -359,48 +359,46 @@ export default function UnifiedCalendar() {
                       </div>
                       <div className="space-y-1">
                         {dayEvents.slice(0, 3).map((event) => (
-                         <TooltipProvider key={event.id}>
-                           <Tooltip>
-                             <TooltipTrigger asChild>
-                               <div
-                                 className="truncate rounded px-1.5 py-0.5 text-[10px] leading-tight cursor-default"
-                                 style={{
-                                   backgroundColor: `${event.color}15`,
-                                   color: event.color,
-                                 }}
-                               >
-                                 {event.type === "google" && (
-                                   <span className="mr-1 opacity-60">G</span>
-                                 )}
-                                 {event.gearBlocked && event.gearBlocked.length > 0 && (
-                                   <Package className="inline h-3 w-3 mr-0.5 text-amber-500" />
-                                 )}
-                                 {event.startTime && (
-                                   <span className="font-medium">
-                                     {event.startTime.substring(0, 5)}{" "}
-                                   </span>
-                                 )}
-                                 {event.title}
-                               </div>
-                             </TooltipTrigger>
-                             <TooltipContent side="right" className="max-w-xs">
-                               <p className="font-medium">{event.title}</p>
-                               {event.type === "google" && (
-                                 <p className="text-xs text-muted-foreground">Google Calendar</p>
-                               )}
-                               {event.gearBlocked && event.gearBlocked.length > 0 && (
-                                 <div className="mt-1 text-xs">
-                                   <span className="text-amber-500 font-medium">Gear Blocked:</span>
-                                   <ul className="list-disc list-inside">
-                                     {event.gearBlocked.map((gear, i) => (
-                                       <li key={i}>{gear}</li>
-                                     ))}
-                                   </ul>
-                                 </div>
-                               )}
-                             </TooltipContent>
-                           </Tooltip>
-                         </TooltipProvider>
+                          <Tooltip key={event.id}>
+                            <TooltipTrigger asChild>
+                              <div
+                                className="truncate rounded px-1.5 py-0.5 text-[10px] leading-tight cursor-default"
+                                style={{
+                                  backgroundColor: `${event.color}15`,
+                                  color: event.color,
+                                }}
+                              >
+                                {event.type === "google" && (
+                                  <span className="mr-1 opacity-60">G</span>
+                                )}
+                                {event.gearBlocked && event.gearBlocked.length > 0 && (
+                                  <Package className="inline h-3 w-3 mr-0.5 text-amber-500" />
+                                )}
+                                {event.startTime && (
+                                  <span className="font-medium">
+                                    {event.startTime.substring(0, 5)}{" "}
+                                  </span>
+                                )}
+                                {event.title}
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent side="right" className="max-w-xs">
+                              <p className="font-medium">{event.title}</p>
+                              {event.type === "google" && (
+                                <p className="text-xs text-muted-foreground">Google Calendar</p>
+                              )}
+                              {event.gearBlocked && event.gearBlocked.length > 0 && (
+                                <div className="mt-1 text-xs">
+                                  <span className="text-amber-500 font-medium">Gear Blocked:</span>
+                                  <ul className="list-disc list-inside">
+                                    {event.gearBlocked.map((gear, i) => (
+                                      <li key={i}>{gear}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                            </TooltipContent>
+                          </Tooltip>
                         ))}
                         {dayEvents.length > 3 && (
                           <p className="text-[10px] text-muted-foreground">
