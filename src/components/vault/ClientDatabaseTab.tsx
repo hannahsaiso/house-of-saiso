@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Building2, Megaphone, Eye } from "lucide-react";
 import { format } from "date-fns";
@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+ import { Switch } from "@/components/ui/switch";
 import {
   Sheet,
   SheetContent,
@@ -21,6 +22,7 @@ import {
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { StudioRenterProfile } from "./StudioRenterProfile";
+ import { toast } from "sonner";
 
 type ClientType = "studio_renter" | "agency_client";
 
@@ -39,7 +41,8 @@ const CLIENT_TYPE_CONFIG: Record<ClientType, { label: string; icon: React.Elemen
 
 export function ClientDatabaseTab() {
   const [selectedClient, setSelectedClient] = useState<any | null>(null);
-  
+   const queryClient = useQueryClient();
+ 
   const { data: clients, isLoading } = useQuery({
     queryKey: ["all-clients"],
     queryFn: async () => {
@@ -51,6 +54,40 @@ export function ClientDatabaseTab() {
       return data;
     },
   });
+ 
+   const toggleClientType = useMutation({
+     mutationFn: async ({ clientId, type, enabled }: { clientId: string; type: ClientType; enabled: boolean }) => {
+       const client = clients?.find((c) => c.id === clientId);
+       if (!client) throw new Error("Client not found");
+ 
+       let currentTypes: ClientType[] = (client.client_type as ClientType[]) || [];
+       
+       if (enabled && !currentTypes.includes(type)) {
+         currentTypes = [...currentTypes, type];
+       } else if (!enabled) {
+         currentTypes = currentTypes.filter((t) => t !== type);
+       }
+ 
+       // Ensure at least one type is selected
+       if (currentTypes.length === 0) {
+         currentTypes = [type === "studio_renter" ? "agency_client" : "studio_renter"];
+       }
+ 
+       const { error } = await supabase
+         .from("clients")
+         .update({ client_type: currentTypes })
+         .eq("id", clientId);
+ 
+       if (error) throw error;
+     },
+     onSuccess: () => {
+       queryClient.invalidateQueries({ queryKey: ["all-clients"] });
+       toast.success("Client type updated");
+     },
+     onError: (error) => {
+       toast.error("Failed to update client type: " + error.message);
+     },
+   });
 
   if (isLoading) {
     return (
@@ -121,6 +158,28 @@ export function ClientDatabaseTab() {
                     );
                   })}
                 </div>
+               <div className="flex items-center gap-3 mt-2">
+                 <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
+                   <Switch
+                     checked={((client.client_type as ClientType[]) || []).includes("studio_renter")}
+                     onCheckedChange={(checked) =>
+                       toggleClientType.mutate({ clientId: client.id, type: "studio_renter", enabled: checked })
+                     }
+                     className="scale-75"
+                   />
+                   Studio
+                 </label>
+                 <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
+                   <Switch
+                     checked={((client.client_type as ClientType[]) || ["agency_client"]).includes("agency_client")}
+                     onCheckedChange={(checked) =>
+                       toggleClientType.mutate({ clientId: client.id, type: "agency_client", enabled: checked })
+                     }
+                     className="scale-75"
+                   />
+                   Agency
+                 </label>
+               </div>
               </TableCell>
               <TableCell>
                 {client.email || (

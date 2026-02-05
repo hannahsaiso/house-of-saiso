@@ -9,10 +9,19 @@
    Sparkles,
    Loader2,
    KeyRound,
+   Clock,
+   DollarSign,
  } from "lucide-react";
  import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
  import { Button } from "@/components/ui/button";
  import { Badge } from "@/components/ui/badge";
+ import {
+   Select,
+   SelectContent,
+   SelectItem,
+   SelectTrigger,
+   SelectValue,
+ } from "@/components/ui/select";
  import { useStudioOperations, StudioOperationsTask } from "@/hooks/useStudioOperations";
  import { useSignatureRequests } from "@/hooks/useSignatureRequests";
  import { useFinancialEntries } from "@/hooks/useFinancialEntries";
@@ -27,10 +36,14 @@ import { toast } from "sonner";
  }
  
  const taskIcons: Record<string, React.ElementType> = {
-   entry_instructions: Send,
-   equipment_check: Wrench,
-   space_reset: Sparkles,
+   space_prep: Sparkles,
  };
+ 
+ const OVERTIME_OPTIONS = [
+   { value: "30min", label: "30 minutes", amount: 75 },
+   { value: "1hour", label: "1 hour", amount: 150 },
+   { value: "2hours", label: "2 hours", amount: 300 },
+ ];
  
  export function StudioOperationsPanel({
    bookingId,
@@ -39,9 +52,11 @@ import { toast } from "sonner";
    clientEmail,
  }: StudioOperationsPanelProps) {
    const { tasks, isLoading, updateTaskStatus } = useStudioOperations(bookingId);
-  const { pendingSignatures } = useSignatureRequests();
-   const { entries } = useFinancialEntries();
+   const { pendingSignatures } = useSignatureRequests();
+   const { entries, createEntry } = useFinancialEntries();
    const [sendingAccess, setSendingAccess] = useState(false);
+   const [addingOvertime, setAddingOvertime] = useState(false);
+   const [selectedOvertime, setSelectedOvertime] = useState<string | null>(null);
  
    // Check if studio rules are signed
   const signatureRequest = pendingSignatures.find(
@@ -77,6 +92,31 @@ import { toast } from "sonner";
        toast.error("Failed to send access info");
      } finally {
        setSendingAccess(false);
+     }
+   };
+ 
+   const handleAddOvertime = async () => {
+     if (!selectedOvertime) return;
+     
+     const overtimeOption = OVERTIME_OPTIONS.find((o) => o.value === selectedOvertime);
+     if (!overtimeOption) return;
+     
+     setAddingOvertime(true);
+     try {
+       await createEntry.mutateAsync({
+         date: new Date().toISOString().split("T")[0],
+         client_id: clientId || undefined,
+         service_type: "studio",
+         description: `Overtime: ${overtimeOption.label} (Booking ${bookingId.slice(0, 8)})`,
+         amount: overtimeOption.amount,
+         payment_status: "sent",
+       });
+       toast.success(`Overtime charge of $${overtimeOption.amount} added to ledger`);
+       setSelectedOvertime(null);
+     } catch (error) {
+       toast.error("Failed to add overtime charge");
+     } finally {
+       setAddingOvertime(false);
      }
    };
  
@@ -189,6 +229,45 @@ import { toast } from "sonner";
                  Requires signed Studio Rules and paid invoice
                </p>
              )}
+           </div>
+ 
+           {/* Add Overtime Button */}
+           <div className="pt-2 border-t border-border/50">
+             <div className="flex items-center gap-2 mb-2">
+               <Clock className="h-4 w-4 text-primary" />
+               <span className="text-sm font-medium">Add Overtime</span>
+             </div>
+             <div className="flex gap-2">
+               <Select
+                 value={selectedOvertime || ""}
+                 onValueChange={setSelectedOvertime}
+               >
+                 <SelectTrigger className="flex-1">
+                   <SelectValue placeholder="Select duration" />
+                 </SelectTrigger>
+                 <SelectContent>
+                   {OVERTIME_OPTIONS.map((option) => (
+                     <SelectItem key={option.value} value={option.value}>
+                       {option.label} (${option.amount})
+                     </SelectItem>
+                   ))}
+                 </SelectContent>
+               </Select>
+               <Button
+                 onClick={handleAddOvertime}
+                 disabled={!selectedOvertime || addingOvertime}
+                 size="sm"
+               >
+                 {addingOvertime ? (
+                   <Loader2 className="h-4 w-4 animate-spin" />
+                 ) : (
+                   <DollarSign className="h-4 w-4" />
+                 )}
+               </Button>
+             </div>
+             <p className="text-xs text-muted-foreground text-center mt-2">
+               Creates pending line item in Vault Ledger
+             </p>
            </div>
          </CardContent>
        </Card>

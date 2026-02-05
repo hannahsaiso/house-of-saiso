@@ -7,13 +7,16 @@ import {
   Circle,
   Loader2,
   RefreshCw,
+   Package,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useStudioBookings } from "@/hooks/useStudioBookings";
 import { useProjects } from "@/hooks/useProjects";
+ import { useInventoryReservations } from "@/hooks/useInventory";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -37,6 +40,7 @@ interface CalendarEvent {
   startTime?: string;
   endTime?: string;
   type: "studio" | "project" | "task" | "google";
+   gearBlocked?: string[];
   color: string;
 }
 
@@ -103,6 +107,14 @@ export default function UnifiedCalendar() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const { bookings, isLoading: bookingsLoading } = useStudioBookings(currentMonth);
   const { projects, isLoading: projectsLoading } = useProjects();
+ 
+   // Fetch gear reservations for the month  
+   const gearMonthStart = startOfMonth(currentMonth);
+   const gearMonthEnd = endOfMonth(currentMonth);
+   const { reservations: gearReservations } = useInventoryReservations(undefined, {
+     from: format(gearMonthStart, "yyyy-MM-dd"),
+     to: format(gearMonthEnd, "yyyy-MM-dd"),
+   });
 
   // Check if user has Google connected
   const { data: hasGoogleConnection } = useQuery({
@@ -162,6 +174,9 @@ export default function UnifiedCalendar() {
         endTime: booking.end_time,
         type: "studio",
         color: "hsl(var(--foreground))",
+         gearBlocked: gearReservations
+           ?.filter((r) => r.booking_id === booking.id)
+           .map((r) => r.inventory?.item_name || "Gear"),
       });
     });
 
@@ -197,7 +212,7 @@ export default function UnifiedCalendar() {
     });
 
     return events;
-  }, [bookings, projects, tasks, googleEvents]);
+   }, [bookings, projects, tasks, googleEvents, gearReservations]);
 
   const isLoading = bookingsLoading || projectsLoading || tasksLoading;
 
@@ -344,25 +359,48 @@ export default function UnifiedCalendar() {
                       </div>
                       <div className="space-y-1">
                         {dayEvents.slice(0, 3).map((event) => (
-                          <div
-                            key={event.id}
-                            className="truncate rounded px-1.5 py-0.5 text-[10px] leading-tight"
-                            style={{
-                              backgroundColor: `${event.color}15`,
-                              color: event.color,
-                            }}
-                            title={`${event.title}${event.type === "google" ? " (Google)" : ""}`}
-                          >
-                            {event.type === "google" && (
-                              <span className="mr-1 opacity-60">G</span>
-                            )}
-                            {event.startTime && (
-                              <span className="font-medium">
-                                {event.startTime.substring(0, 5)}{" "}
-                              </span>
-                            )}
-                            {event.title}
-                          </div>
+                         <TooltipProvider key={event.id}>
+                           <Tooltip>
+                             <TooltipTrigger asChild>
+                               <div
+                                 className="truncate rounded px-1.5 py-0.5 text-[10px] leading-tight cursor-default"
+                                 style={{
+                                   backgroundColor: `${event.color}15`,
+                                   color: event.color,
+                                 }}
+                               >
+                                 {event.type === "google" && (
+                                   <span className="mr-1 opacity-60">G</span>
+                                 )}
+                                 {event.gearBlocked && event.gearBlocked.length > 0 && (
+                                   <Package className="inline h-3 w-3 mr-0.5 text-amber-500" />
+                                 )}
+                                 {event.startTime && (
+                                   <span className="font-medium">
+                                     {event.startTime.substring(0, 5)}{" "}
+                                   </span>
+                                 )}
+                                 {event.title}
+                               </div>
+                             </TooltipTrigger>
+                             <TooltipContent side="right" className="max-w-xs">
+                               <p className="font-medium">{event.title}</p>
+                               {event.type === "google" && (
+                                 <p className="text-xs text-muted-foreground">Google Calendar</p>
+                               )}
+                               {event.gearBlocked && event.gearBlocked.length > 0 && (
+                                 <div className="mt-1 text-xs">
+                                   <span className="text-amber-500 font-medium">Gear Blocked:</span>
+                                   <ul className="list-disc list-inside">
+                                     {event.gearBlocked.map((gear, i) => (
+                                       <li key={i}>{gear}</li>
+                                     ))}
+                                   </ul>
+                                 </div>
+                               )}
+                             </TooltipContent>
+                           </Tooltip>
+                         </TooltipProvider>
                         ))}
                         {dayEvents.length > 3 && (
                           <p className="text-[10px] text-muted-foreground">

@@ -16,9 +16,7 @@
  
  // Default operations tasks template
  const OPERATIONS_TASK_TEMPLATE = [
-   { task_type: "entry_instructions", task_name: "Send Entry Instructions to Client" },
-   { task_type: "equipment_check", task_name: "Pre-shoot Equipment Check" },
-   { task_type: "space_reset", task_name: "Post-shoot Space Reset & Cleaning" },
+   { task_type: "space_prep", task_name: "Studio Prep: Clean space & check gear" },
  ];
  
  export function useStudioOperations(bookingId?: string) {
@@ -121,8 +119,8 @@
    const notifications = admins.map((admin) => ({
      user_id: admin.user_id,
      type: "booking_approval",
-     title: "New Studio Booking Requires Approval",
-     message: `Approve booking "${eventName || "Studio Rental"}" & confirm resource availability`,
+     title: "New Venue Rental Inquiry",
+     message: `Confirm Space & Gear Availability for "${eventName || "Studio Rental"}"`,
      data: { booking_id: bookingId },
    }));
  
