@@ -68,12 +68,22 @@ function NavGroup({ label, number, items, collapsed, currentPath, isAdmin, isAdm
   });
 
   const hasActiveItem = filteredItems.some((item) => currentPath === item.url);
-  const [isOpen, setIsOpen] = useState(true);
+  
+  // Contextual dimming logic
+  const isStudioSection = label === "Studio";
+  const isWorkSection = label === "Work";
+  const isInStudioRoute = currentPath === "/studio" || currentPath === "/inventory";
+  const isInWorkRoute = currentPath === "/projects" || currentPath === "/" || currentPath.startsWith("/admin");
+  
+  // Dim Work when in Studio routes, dim Studio when in Work routes
+  const isDimmed = (isStudioSection && isInWorkRoute) || (isWorkSection && isInStudioRoute);
+  
+  const [isOpen, setIsOpen] = useState(hasActiveItem ? true : !isDimmed);
 
   if (filteredItems.length === 0) return null;
 
   return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen} className="group/collapsible">
+    <Collapsible open={isOpen} onOpenChange={setIsOpen} className={cn("group/collapsible", isDimmed && "opacity-50")}>
       {!collapsed && (
         <CollapsibleTrigger className="flex w-full items-center justify-between px-3 py-2 hover:bg-sidebar-accent/50 rounded-sm transition-colors">
           <span className="font-heading text-[10px] font-medium uppercase tracking-editorial text-sidebar-foreground/40">

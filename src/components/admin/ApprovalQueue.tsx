@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, MessageSquare, User, Clock, Loader2 } from "lucide-react";
+import { Check, MessageSquare, User, Clock, Loader2, Eye, ThumbsUp, Edit3 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,14 +13,22 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { useApprovalQueue, ReviewTask } from "@/hooks/useApprovalQueue";
 import { formatDistanceToNow } from "date-fns";
+import { TaskCardSkeleton } from "@/components/ui/skeleton-loaders";
 
 export function ApprovalQueue() {
   const { reviewTasks, isLoading, approveTask, addFeedback } = useApprovalQueue();
   const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<ReviewTask | null>(null);
   const [feedbackText, setFeedbackText] = useState("");
+  const [quickFeedbackTaskId, setQuickFeedbackTaskId] = useState<string | null>(null);
+  const [quickFeedbackText, setQuickFeedbackText] = useState("");
 
   const handleApprove = (taskId: string) => {
     approveTask.mutate(taskId);
@@ -41,14 +49,23 @@ export function ApprovalQueue() {
     }
   };
 
+  const handleQuickFeedback = (taskId: string) => {
+    if (quickFeedbackText.trim()) {
+      addFeedback.mutate({ taskId, feedback: quickFeedbackText });
+      setQuickFeedbackTaskId(null);
+      setQuickFeedbackText("");
+    }
+  };
+
   if (isLoading) {
     return (
       <Card>
         <CardHeader>
           <CardTitle className="font-heading text-lg">Needs Review</CardTitle>
         </CardHeader>
-        <CardContent className="flex items-center justify-center py-8">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <CardContent className="space-y-3">
+          <TaskCardSkeleton />
+          <TaskCardSkeleton />
         </CardContent>
       </Card>
     );
@@ -101,27 +118,79 @@ export function ApprovalQueue() {
                           {formatDistanceToNow(new Date(task.updated_at), { addSuffix: true })}
                         </div>
                       </div>
+                      {/* Quick Preview Note */}
+                      {task.description && (
+                        <div className="mt-2 rounded bg-muted/30 px-2 py-1.5">
+                          <p className="text-xs text-muted-foreground line-clamp-2">
+                            {task.description}
+                          </p>
+                        </div>
+                      )}
                     </div>
                     <div className="mt-3 flex items-center gap-2">
+                      {/* Looks Great - One Click to Done */}
                       <Button
                         size="sm"
-                        variant="outline"
-                        className="h-7 flex-1 gap-1 text-xs"
+                        variant="default"
+                        className="h-7 flex-1 gap-1 text-xs bg-primary/90 hover:bg-primary"
                         onClick={() => handleApprove(task.id)}
                         disabled={approveTask.isPending}
                       >
-                        <Check className="h-3 w-3" />
-                        Approve
+                        <ThumbsUp className="h-3 w-3" />
+                        Looks Great
                       </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 flex-1 gap-1 text-xs"
-                        onClick={() => handleOpenFeedback(task)}
+                      
+                      {/* Needs Edit - Inline Quick Feedback */}
+                      <Popover 
+                        open={quickFeedbackTaskId === task.id} 
+                        onOpenChange={(open) => {
+                          if (open) {
+                            setQuickFeedbackTaskId(task.id);
+                            setQuickFeedbackText("");
+                          } else {
+                            setQuickFeedbackTaskId(null);
+                          }
+                        }}
                       >
-                        <MessageSquare className="h-3 w-3" />
-                        Feedback
-                      </Button>
+                        <PopoverTrigger asChild>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 flex-1 gap-1 text-xs"
+                          >
+                            <Edit3 className="h-3 w-3" />
+                            Needs Edit
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-72 p-3" align="end">
+                          <Textarea
+                            placeholder="Quick feedback..."
+                            value={quickFeedbackText}
+                            onChange={(e) => setQuickFeedbackText(e.target.value)}
+                            rows={2}
+                            className="mb-2 text-sm"
+                            autoFocus
+                          />
+                          <div className="flex justify-end gap-2">
+                            <Button 
+                              size="sm" 
+                              variant="ghost" 
+                              className="h-7 text-xs"
+                              onClick={() => setQuickFeedbackTaskId(null)}
+                            >
+                              Cancel
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              className="h-7 text-xs"
+                              onClick={() => handleQuickFeedback(task.id)}
+                              disabled={!quickFeedbackText.trim() || addFeedback.isPending}
+                            >
+                              Send
+                            </Button>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
                     </div>
                   </motion.div>
                 ))}

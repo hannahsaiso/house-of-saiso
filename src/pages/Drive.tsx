@@ -1,6 +1,6 @@
-  import { useState, useCallback } from "react";
- import { motion } from "framer-motion";
- import { 
+import { useState, useCallback } from "react";
+import { motion } from "framer-motion";
+import {
    HardDrive, 
    Search, 
    Folder, 
@@ -19,12 +19,13 @@
  import { Input } from "@/components/ui/input";
  import { Button } from "@/components/ui/button";
  import { Card, CardContent } from "@/components/ui/card";
- import { useGoogleDrive, useGoogleDriveSearch, DriveFile } from "@/hooks/useGoogleDrive";
- import { useGoogleOAuth } from "@/hooks/useGoogleOAuth";
- import { ConnectWorkspacePrompt } from "@/components/drive/ConnectWorkspacePrompt";
-  import { FilePreviewLightbox } from "@/components/drive/FilePreviewLightbox";
- import { formatDistanceToNow } from "date-fns";
- import { cn } from "@/lib/utils";
+import { useGoogleDrive, useGoogleDriveSearch, DriveFile } from "@/hooks/useGoogleDrive";
+import { useGoogleOAuth } from "@/hooks/useGoogleOAuth";
+import { ConnectWorkspacePrompt } from "@/components/drive/ConnectWorkspacePrompt";
+import { FilePreviewLightbox } from "@/components/drive/FilePreviewLightbox";
+import { DriveGridSkeleton } from "@/components/ui/skeleton-loaders";
+import { formatDistanceToNow } from "date-fns";
+import { cn } from "@/lib/utils";
  
  const getFileIcon = (mimeType: string) => {
    if (mimeType.includes("folder")) return Folder;
@@ -189,24 +190,22 @@ function FileCard({ file, onPreview, isSelected }: FileCardProps) {
            />
          </div>
  
-         {/* Files Grid */}
-         {isDataLoading ? (
-           <div className="flex items-center justify-center py-16">
-             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-           </div>
-         ) : displayFiles.length === 0 ? (
-           <div className="flex flex-col items-center justify-center py-16 text-center">
-             <HardDrive className="mb-4 h-12 w-12 text-muted-foreground/50" />
-             <h3 className="font-heading text-lg font-medium">
-               {searchQuery ? "No files found" : "No files yet"}
-             </h3>
-             <p className="mt-2 text-sm text-muted-foreground">
-               {searchQuery 
-                 ? "Try a different search term" 
-                 : "Files from your Google Drive will appear here"}
-             </p>
-           </div>
-         ) : (
+        {/* Files Grid */}
+        {isDataLoading ? (
+          <DriveGridSkeleton />
+        ) : displayFiles.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <HardDrive className="mb-4 h-12 w-12 text-muted-foreground/50" />
+            <h3 className="font-heading text-lg font-medium">
+              {searchQuery ? "No files found" : "No files yet"}
+            </h3>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {searchQuery 
+                ? "Try a different search term" 
+                : "Files from your Google Drive will appear here"}
+            </p>
+          </div>
+        ) : (
           <div 
             className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
             onKeyDown={handleKeyDown}
@@ -219,9 +218,9 @@ function FileCard({ file, onPreview, isSelected }: FileCardProps) {
                 onPreview={() => handleOpenPreview(index)}
                 isSelected={selectedFileIndex === index}
               />
-             ))}
-           </div>
-         )}
+            ))}
+          </div>
+        )}
 
         {/* Lightbox Preview */}
         <FilePreviewLightbox
@@ -240,7 +239,7 @@ function FileCard({ file, onPreview, isSelected }: FileCardProps) {
             Click a file to preview • Press Space for quick look • Arrow keys to navigate
           </p>
         )}
-       </div>
-     </DashboardLayout>
-   );
- }
+      </div>
+    </DashboardLayout>
+  );
+}
