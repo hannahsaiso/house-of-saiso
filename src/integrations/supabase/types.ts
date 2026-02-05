@@ -173,6 +173,84 @@ export type Database = {
         }
         Relationships: []
       }
+      inventory: {
+        Row: {
+          category: string
+          created_at: string
+          created_by: string | null
+          id: string
+          item_name: string
+          notes: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          item_name: string
+          notes?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          item_name?: string
+          notes?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      inventory_reservations: {
+        Row: {
+          booking_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          inventory_id: string
+          reserved_from: string
+          reserved_until: string
+        }
+        Insert: {
+          booking_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          inventory_id: string
+          reserved_from: string
+          reserved_until: string
+        }
+        Update: {
+          booking_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          inventory_id?: string
+          reserved_from?: string
+          reserved_until?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_reservations_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "studio_bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_reservations_inventory_id_fkey"
+            columns: ["inventory_id"]
+            isOneToOne: false
+            referencedRelation: "inventory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           created_at: string

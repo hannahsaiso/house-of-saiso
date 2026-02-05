@@ -16,6 +16,7 @@ import ProfileSettings from "./pages/settings/ProfileSettings";
 import TeamManagement from "./pages/settings/TeamManagement";
 import AdminDashboard from "./pages/admin/Dashboard";
 import UnifiedCalendar from "./pages/Calendar";
+import Inventory from "./pages/Inventory";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -33,6 +34,7 @@ const App = () => (
           <Route path="/vault" element={<Vault />} />
           <Route path="/calendar" element={<UnifiedCalendar />} />
           <Route path="/calendar/:token" element={<PublicCalendar />} />
+          <Route path="/inventory" element={<Inventory />} />
           <Route path="/onboarding" element={<Onboarding />} />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/settings" element={<Settings />}>
