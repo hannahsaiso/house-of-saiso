@@ -12,13 +12,15 @@
    }
  
    try {
-     const { date, start_time, end_time, booking_type, required_resources } = await req.json();
+     const { date, start_time, end_time, booking_type, required_resources, required_tags } = await req.json();
      
      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
      const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
      const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
  
      const supabase = createClient(supabaseUrl, supabaseKey);
+ 
+     console.log("Smart booking check:", { date, start_time, end_time, booking_type, required_resources, required_tags });
  
      // Check for booking conflicts
      const { data: conflicts, error: conflictError } = await supabase
@@ -31,6 +33,33 @@
        console.error("Conflict check error:", conflictError);
        throw conflictError;
      }
+ 
+     // Get required resource details including tags
+     let requiredResourceDetails: any[] = [];
+     let requiredResourceTags: string[] = required_tags || [];
+     
+     if (required_resources && required_resources.length > 0) {
+       const { data: resourceData } = await supabase
+         .from("inventory")
+         .select("id, item_name, category, tags, status")
+         .in("id", required_resources);
+       
+       if (resourceData) {
+         requiredResourceDetails = resourceData;
+         // Collect all unique tags from required resources
+         resourceData.forEach((r: any) => {
+           if (r.tags && Array.isArray(r.tags)) {
+             r.tags.forEach((tag: string) => {
+               if (!requiredResourceTags.includes(tag)) {
+                 requiredResourceTags.push(tag);
+               }
+             });
+           }
+         });
+       }
+     }
+ 
+     console.log("Required resource tags:", requiredResourceTags);
  
      // Check inventory availability if resources are specified
      let unavailableResources: string[] = [];
@@ -62,27 +91,55 @@
        .eq("date", date)
        .order("start_time");
  
-     // Find available inventory alternatives
-     const { data: availableInventory } = await supabase
+     // Find available inventory alternatives WITH MATCHING TAGS
+     // Only suggest alternatives that have at least one of the required tags
+     let alternativesQuery = supabase
        .from("inventory")
-       .select("id, item_name, category")
-       .eq("status", "available")
-       .limit(5);
+       .select("id, item_name, category, tags")
+       .eq("status", "available");
+ 
+     const { data: allAvailableInventory } = await alternativesQuery;
+ 
+     // Filter alternatives to only include those with matching tags
+     let matchingAlternatives: any[] = [];
+     if (allAvailableInventory && requiredResourceTags.length > 0) {
+       matchingAlternatives = allAvailableInventory.filter((item: any) => {
+         if (!item.tags || !Array.isArray(item.tags) || item.tags.length === 0) {
+           return false;
+         }
+         // Check if this item shares at least one tag with required tags
+         return item.tags.some((tag: string) => requiredResourceTags.includes(tag));
+       });
+     } else if (allAvailableInventory) {
+       // If no specific tags required, show first 5 alternatives
+       matchingAlternatives = allAvailableInventory.slice(0, 5);
+     }
+ 
+     console.log("Matching alternatives with tags:", matchingAlternatives);
  
      // Generate AI suggestion using Lovable AI
      let aiSuggestion = "";
      if (lovableApiKey) {
        const conflictInfo = conflicts?.map(c => `${c.event_name} (${c.start_time}-${c.end_time})`).join(", ") || "";
        const resourceInfo = unavailableResources.join(", ");
-       const alternativeResources = availableInventory?.map(i => `${i.item_name} (${i.category})`).join(", ") || "";
+       const requiredTagsInfo = requiredResourceTags.length > 0 ? requiredResourceTags.join(", ") : "None specified";
+       const alternativeResources = matchingAlternatives.map(i => {
+         const itemTags = i.tags && Array.isArray(i.tags) ? i.tags.join(", ") : "no tags";
+         return `${i.item_name} (${i.category}, tags: ${itemTags})`;
+       }).join("; ") || "None available with matching features";
        
        const prompt = `You are a helpful studio booking assistant. A user is trying to book a ${booking_type} session on ${date} from ${start_time} to ${end_time}.
  
- ${conflicts && conflicts.length > 0 ? `Time conflicts: ${conflictInfo}` : ""}
- ${resourceInfo ? `Unavailable resources: ${resourceInfo}` : ""}
- ${alternativeResources ? `Available alternatives: ${alternativeResources}` : ""}
+ REQUIRED FEATURES/TAGS: ${requiredTagsInfo}
  
- Provide a brief, helpful suggestion (max 2 sentences) for an alternative. Be specific and professional. Suggest a different time or alternative equipment if available.`;
+ ${conflicts && conflicts.length > 0 ? `TIME CONFLICTS: ${conflictInfo}` : ""}
+ ${resourceInfo ? `UNAVAILABLE RESOURCES: ${resourceInfo}` : ""}
+ 
+ AVAILABLE ALTERNATIVES WITH MATCHING FEATURES: ${alternativeResources}
+ 
+ IMPORTANT: Only suggest alternatives that have the same features/tags as the original booking requirements (e.g., if they need "Natural Light", only suggest rooms with "Natural Light" tag). 
+ 
+ Provide a brief, helpful suggestion (max 2 sentences) for an alternative. Be specific and professional. If no alternatives match the requirements, say so clearly.`;
  
        try {
          const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -94,10 +151,10 @@
            body: JSON.stringify({
              model: "google/gemini-3-flash-preview",
              messages: [
-               { role: "system", content: "You are a concise, professional studio booking assistant." },
+               { role: "system", content: "You are a concise, professional studio booking assistant. You MUST only suggest alternatives that match the original requirements and feature tags." },
                { role: "user", content: prompt }
              ],
-             max_tokens: 150,
+             max_tokens: 200,
            }),
          });
  
@@ -107,15 +164,23 @@
          }
        } catch (aiError) {
          console.error("AI suggestion error:", aiError);
-         // Fall back to basic suggestion
-         aiSuggestion = unavailableResources.length > 0 
-           ? `Some resources are unavailable. Consider alternatives: ${alternativeResources}`
-           : "This time slot is booked. Try a different time.";
+         // Fall back to basic suggestion with tag-awareness
+         if (matchingAlternatives.length > 0) {
+           const altNames = matchingAlternatives.map(a => a.item_name).join(", ");
+           aiSuggestion = `Some resources are unavailable. Consider these alternatives with matching features: ${altNames}`;
+         } else {
+           aiSuggestion = "No alternatives with matching features are currently available. Consider adjusting your requirements or selecting a different time.";
+         }
        }
      } else {
-       aiSuggestion = unavailableResources.length > 0
-         ? `Resources unavailable: ${unavailableResources.join(", ")}`
-         : "Time slot conflict detected. Please choose another time.";
+       if (matchingAlternatives.length > 0) {
+         const altNames = matchingAlternatives.map(a => a.item_name).join(", ");
+         aiSuggestion = unavailableResources.length > 0
+           ? `Resources unavailable. Matching alternatives: ${altNames}`
+           : `Time slot conflict. Consider: ${altNames}`;
+       } else {
+         aiSuggestion = "No alternatives with matching features available.";
+       }
      }
  
      return new Response(
@@ -124,7 +189,8 @@
          conflicts: conflicts || [],
          unavailableResources,
          suggestion: aiSuggestion,
-         availableAlternatives: availableInventory || [],
+         availableAlternatives: matchingAlternatives,
+         requiredTags: requiredResourceTags,
        }),
        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
      );
