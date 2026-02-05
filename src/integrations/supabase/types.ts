@@ -454,6 +454,116 @@ export type Database = {
           },
         ]
       }
+      project_intake_canvas: {
+        Row: {
+          brand_pillars: string[] | null
+          competitors: string | null
+          created_at: string | null
+          created_by: string | null
+          id: string
+          inspiration_gallery: Json | null
+          kickoff_template_enabled: boolean | null
+          project_goals: string | null
+          project_id: string
+          target_audience: string | null
+          tone_of_voice: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          brand_pillars?: string[] | null
+          competitors?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          inspiration_gallery?: Json | null
+          kickoff_template_enabled?: boolean | null
+          project_goals?: string | null
+          project_id: string
+          target_audience?: string | null
+          tone_of_voice?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          brand_pillars?: string[] | null
+          competitors?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          inspiration_gallery?: Json | null
+          kickoff_template_enabled?: boolean | null
+          project_goals?: string | null
+          project_id?: string
+          target_audience?: string | null
+          tone_of_voice?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_intake_canvas_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: true
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_knowledge_vault: {
+        Row: {
+          canvas_id: string | null
+          created_at: string | null
+          generated_at: string | null
+          generated_by: string | null
+          id: string
+          is_locked: boolean | null
+          pillar_tags: string[] | null
+          project_charter: string
+          project_id: string
+          tone_tags: string[] | null
+          updated_at: string | null
+        }
+        Insert: {
+          canvas_id?: string | null
+          created_at?: string | null
+          generated_at?: string | null
+          generated_by?: string | null
+          id?: string
+          is_locked?: boolean | null
+          pillar_tags?: string[] | null
+          project_charter: string
+          project_id: string
+          tone_tags?: string[] | null
+          updated_at?: string | null
+        }
+        Update: {
+          canvas_id?: string | null
+          created_at?: string | null
+          generated_at?: string | null
+          generated_by?: string | null
+          id?: string
+          is_locked?: boolean | null
+          pillar_tags?: string[] | null
+          project_charter?: string
+          project_id?: string
+          tone_tags?: string[] | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_knowledge_vault_canvas_id_fkey"
+            columns: ["canvas_id"]
+            isOneToOne: false
+            referencedRelation: "project_intake_canvas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_knowledge_vault_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: true
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_members: {
         Row: {
           created_at: string

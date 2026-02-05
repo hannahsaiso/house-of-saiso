@@ -17,6 +17,7 @@ export interface Project {
   client?: {
     name: string;
     company: string | null;
+     brand_assets_folder?: string | null;
   } | null;
 }
 
@@ -37,7 +38,7 @@ export function useProjects(includeArchived = false) {
         .from("projects")
         .select(`
           *,
-          client:clients(name, company)
+           client:clients(name, company, brand_assets_folder)
         `)
         .order("updated_at", { ascending: false });
 
@@ -95,6 +96,47 @@ export function useProjects(includeArchived = false) {
     },
   });
 
+   const updateProjectStatus = useMutation({
+     mutationFn: async ({ projectId, status }: { projectId: string; status: string }) => {
+       const { data: { user } } = await supabase.auth.getUser();
+       if (!user) throw new Error("Not authenticated");
+ 
+       const { data: project, error } = await supabase
+         .from("projects")
+         .update({ status })
+         .eq("id", projectId)
+         .select(`*, client:clients(name, company, brand_assets_folder)`)
+         .single();
+ 
+       if (error) throw error;
+ 
+       // If status changed to active, ensure Drive folder exists
+       if (status === "active" && project.client && !project.client.brand_assets_folder) {
+         try {
+           await supabase.functions.invoke("create-project-drive", {
+             body: {
+               project_id: project.id,
+               client_name: project.client.name,
+               user_id: user.id,
+             },
+           });
+           console.log("Project Drive folder created on activation");
+         } catch (driveError) {
+           console.error("Drive folder creation failed:", driveError);
+         }
+       }
+ 
+       return project as Project;
+     },
+     onSuccess: () => {
+       queryClient.invalidateQueries({ queryKey: ["projects"] });
+       toast.success("Project status updated");
+     },
+     onError: (error) => {
+       toast.error("Failed to update status: " + error.message);
+     },
+   });
+ 
   const archiveProject = useMutation({
     mutationFn: async (projectId: string) => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -149,6 +191,7 @@ export function useProjects(includeArchived = false) {
     archivedProjects: projects?.filter((p) => p.archived_at) || [],
     isLoading,
     createProject,
+     updateProjectStatus,
     archiveProject,
     restoreProject,
   };
