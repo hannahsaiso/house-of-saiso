@@ -4,13 +4,14 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
+import { CommandBar } from "@/components/command/CommandBar";
 import Index from "./pages/Index";
 import Projects from "./pages/Projects";
 import Studio from "./pages/Studio";
 import Vault from "./pages/Vault";
 import PublicCalendar from "./pages/PublicCalendar";
 import Onboarding from "./pages/Onboarding";
- import ClientIntake from "./pages/ClientIntake";
+import ClientIntake from "./pages/ClientIntake";
 import Settings from "./pages/Settings";
 import Integrations from "./pages/settings/Integrations";
 import IntegrationsCallback from "./pages/settings/IntegrationsCallback";
@@ -20,7 +21,7 @@ import AdminDashboard from "./pages/admin/Dashboard";
 import UnifiedCalendar from "./pages/Calendar";
 import Inventory from "./pages/Inventory";
 import NotFound from "./pages/NotFound";
- import Inbox from "./pages/Inbox";
+import Inbox from "./pages/Inbox";
 import Drive from "./pages/Drive";
 
 const queryClient = new QueryClient();
@@ -31,6 +32,7 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
+        <CommandBar />
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />

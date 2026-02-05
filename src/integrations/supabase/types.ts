@@ -521,6 +521,53 @@ export type Database = {
         }
         Relationships: []
       }
+      project_changelog: {
+        Row: {
+          content: string | null
+          created_at: string
+          created_by: string | null
+          entry_type: string
+          id: string
+          project_id: string
+          source_email_date: string | null
+          source_email_from: string | null
+          source_email_thread_id: string | null
+          title: string
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string
+          created_by?: string | null
+          entry_type?: string
+          id?: string
+          project_id: string
+          source_email_date?: string | null
+          source_email_from?: string | null
+          source_email_thread_id?: string | null
+          title: string
+        }
+        Update: {
+          content?: string | null
+          created_at?: string
+          created_by?: string | null
+          entry_type?: string
+          id?: string
+          project_id?: string
+          source_email_date?: string | null
+          source_email_from?: string | null
+          source_email_thread_id?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_changelog_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_documents: {
         Row: {
           client_id: string | null
