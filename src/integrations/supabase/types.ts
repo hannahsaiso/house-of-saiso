@@ -17,6 +17,7 @@ export type Database = {
       clients: {
         Row: {
           brand_assets_folder: string | null
+          client_type: string[] | null
           company: string | null
           created_at: string
           created_by: string | null
@@ -36,6 +37,7 @@ export type Database = {
         }
         Insert: {
           brand_assets_folder?: string | null
+          client_type?: string[] | null
           company?: string | null
           created_at?: string
           created_by?: string | null
@@ -55,6 +57,7 @@ export type Database = {
         }
         Update: {
           brand_assets_folder?: string | null
+          client_type?: string[] | null
           company?: string | null
           created_at?: string
           created_by?: string | null
@@ -82,7 +85,9 @@ export type Database = {
           created_by: string | null
           date: string
           description: string | null
+          fixed_cost: number | null
           id: string
+          operational_hours: number | null
           payment_status: string | null
           project_id: string | null
           service_type: string
@@ -97,7 +102,9 @@ export type Database = {
           created_by?: string | null
           date: string
           description?: string | null
+          fixed_cost?: number | null
           id?: string
+          operational_hours?: number | null
           payment_status?: string | null
           project_id?: string | null
           service_type: string
@@ -112,7 +119,9 @@ export type Database = {
           created_by?: string | null
           date?: string
           description?: string | null
+          fixed_cost?: number | null
           id?: string
+          operational_hours?: number | null
           payment_status?: string | null
           project_id?: string | null
           service_type?: string
@@ -768,6 +777,50 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      studio_operations_tasks: {
+        Row: {
+          assigned_to: string | null
+          booking_id: string
+          completed_at: string | null
+          created_at: string
+          id: string
+          status: string
+          task_name: string
+          task_type: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          booking_id: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          status?: string
+          task_name: string
+          task_type: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          booking_id?: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          status?: string
+          task_name?: string
+          task_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "studio_operations_tasks_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "studio_bookings"
             referencedColumns: ["id"]
           },
         ]

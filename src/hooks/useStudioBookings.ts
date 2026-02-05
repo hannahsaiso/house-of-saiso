@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { getStaffUserId, notifyAdminNewBooking } from "./useStudioOperations";
 
 export interface StudioBooking {
   id: string;
@@ -78,6 +79,12 @@ export function useStudioBookings(month?: Date) {
         .select()
         .single();
       if (error) throw error;
+      
+      // Notify admin of new booking for approval
+      if (result) {
+        await notifyAdminNewBooking(result.id, data.event_name || data.booking_type);
+      }
+      
       return result;
     },
     onSuccess: () => {
@@ -91,6 +98,8 @@ export function useStudioBookings(month?: Date) {
 
   const updateBooking = useMutation({
     mutationFn: async ({ id, ...data }: Partial<CreateBookingData> & { id: string }) => {
+      const previousBooking = bookings?.find((b) => b.id === id);
+      
       const { data: result, error } = await supabase
         .from("studio_bookings")
         .update(data)
@@ -98,10 +107,28 @@ export function useStudioBookings(month?: Date) {
         .select()
         .single();
       if (error) throw error;
+      
+      // If status changed to confirmed, create operations tasks
+      if (data.status === "confirmed" && previousBooking?.status !== "confirmed") {
+        const staffId = await getStaffUserId();
+        
+        // Create studio operations tasks
+        const tasksToCreate = [
+          { booking_id: id, task_type: "entry_instructions", task_name: "Send Entry Instructions to Client", assigned_to: staffId, status: "pending" },
+          { booking_id: id, task_type: "equipment_check", task_name: "Pre-shoot Equipment Check", assigned_to: staffId, status: "pending" },
+          { booking_id: id, task_type: "space_reset", task_name: "Post-shoot Space Reset & Cleaning", assigned_to: staffId, status: "pending" },
+        ];
+        
+        await supabase
+          .from("studio_operations_tasks")
+          .upsert(tasksToCreate, { onConflict: "booking_id,task_type" });
+      }
+      
       return result;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["studio-bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["studio-operations"] });
       toast.success("Booking updated successfully");
     },
     onError: (error) => {
