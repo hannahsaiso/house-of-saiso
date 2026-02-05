@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { useUserRole } from "@/hooks/useUserRole";
+import { TimeLogDialog } from "@/components/tasks/TimeLogDialog";
 
 interface Task {
   id: string;
@@ -20,6 +21,7 @@ interface Task {
   assigned_to: string | null;
   internal_notes: string | null;
   created_at: string;
+  hours_logged: number | null;
 }
 
 interface TasksTabProps {
@@ -147,6 +149,15 @@ export function TasksTab({ projectId }: TasksTabProps) {
               >
                 {task.status.replace("_", " ")}
               </Badge>
+            {/* Time Tracking - visible to admin/staff */}
+            {isAdminOrStaff && (
+              <TimeLogDialog
+                taskId={task.id}
+                projectId={projectId}
+                taskTitle={task.title}
+                currentHours={Number(task.hours_logged) || 0}
+              />
+            )}
             </div>
             {/* Internal notes - only visible to admin/staff */}
             {isAdminOrStaff && task.internal_notes && (

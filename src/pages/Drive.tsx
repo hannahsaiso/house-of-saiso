@@ -1,4 +1,4 @@
- import { useState } from "react";
+  import { useState, useCallback } from "react";
  import { motion } from "framer-motion";
  import { 
    HardDrive, 
@@ -12,7 +12,8 @@
    Presentation,
    ExternalLink,
    RefreshCw,
-   Loader2
+    Loader2,
+    Eye
  } from "lucide-react";
  import { DashboardLayout } from "@/components/layout/DashboardLayout";
  import { Input } from "@/components/ui/input";
@@ -21,6 +22,7 @@
  import { useGoogleDrive, useGoogleDriveSearch, DriveFile } from "@/hooks/useGoogleDrive";
  import { useGoogleOAuth } from "@/hooks/useGoogleOAuth";
  import { ConnectWorkspacePrompt } from "@/components/drive/ConnectWorkspacePrompt";
+  import { FilePreviewLightbox } from "@/components/drive/FilePreviewLightbox";
  import { formatDistanceToNow } from "date-fns";
  import { cn } from "@/lib/utils";
  
@@ -45,20 +47,27 @@
    return "text-muted-foreground";
  };
  
- function FileCard({ file }: { file: DriveFile }) {
+interface FileCardProps {
+  file: DriveFile;
+  onPreview: () => void;
+  isSelected: boolean;
+}
+
+function FileCard({ file, onPreview, isSelected }: FileCardProps) {
    const Icon = getFileIcon(file.mimeType);
    const colorClass = getFileColor(file.mimeType);
  
    return (
-     <motion.a
-       href={file.webViewLink}
-       target="_blank"
-       rel="noopener noreferrer"
+    <motion.div
        initial={{ opacity: 0, y: 10 }}
        animate={{ opacity: 1, y: 0 }}
        className="group block"
+      onClick={onPreview}
      >
-       <Card className="transition-all duration-200 hover:border-primary/30 hover:shadow-md">
+      <Card className={cn(
+        "cursor-pointer transition-all duration-200 hover:border-primary/30 hover:shadow-md",
+        isSelected && "border-primary ring-1 ring-primary/20"
+      )}>
          <CardContent className="p-4">
            <div className="flex items-start gap-3">
              <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted/50", colorClass)}>
@@ -72,16 +81,29 @@
                  {formatDistanceToNow(new Date(file.modifiedTime), { addSuffix: true })}
                </p>
              </div>
-             <ExternalLink className="h-4 w-4 text-muted-foreground/50 opacity-0 transition-opacity group-hover:opacity-100" />
+            <div className="flex items-center gap-1">
+              <Eye className="h-4 w-4 text-muted-foreground/50 opacity-0 transition-opacity group-hover:opacity-100" />
+              <a 
+                href={file.webViewLink} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="opacity-0 transition-opacity group-hover:opacity-100"
+              >
+                <ExternalLink className="h-4 w-4 text-muted-foreground/50 hover:text-primary" />
+              </a>
+            </div>
            </div>
          </CardContent>
        </Card>
-     </motion.a>
+    </motion.div>
    );
  }
  
  export default function Drive() {
    const [searchQuery, setSearchQuery] = useState("");
+  const [selectedFileIndex, setSelectedFileIndex] = useState<number | null>(null);
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
    const { isConnected, isTokenExpired, isLoading: oauthLoading } = useGoogleOAuth();
    const { files, isLoading, refetch } = useGoogleDrive();
    const { files: searchResults, isLoading: searchLoading } = useGoogleDriveSearch(searchQuery);
@@ -89,6 +111,38 @@
    const displayFiles = searchQuery ? searchResults : files;
    const isDataLoading = searchQuery ? searchLoading : isLoading;
  
+  const handleOpenPreview = useCallback((index: number) => {
+    setSelectedFileIndex(index);
+    setIsLightboxOpen(true);
+  }, []);
+
+  const handleClosePreview = useCallback(() => {
+    setIsLightboxOpen(false);
+    setSelectedFileIndex(null);
+  }, []);
+
+  const handleNextFile = useCallback(() => {
+    if (selectedFileIndex !== null && selectedFileIndex < displayFiles.length - 1) {
+      setSelectedFileIndex(selectedFileIndex + 1);
+    }
+  }, [selectedFileIndex, displayFiles.length]);
+
+  const handlePreviousFile = useCallback(() => {
+    if (selectedFileIndex !== null && selectedFileIndex > 0) {
+      setSelectedFileIndex(selectedFileIndex - 1);
+    }
+  }, [selectedFileIndex]);
+
+  // Handle spacebar preview
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === " " && selectedFileIndex !== null && !isLightboxOpen) {
+      e.preventDefault();
+      setIsLightboxOpen(true);
+    }
+  }, [selectedFileIndex, isLightboxOpen]);
+
+  const selectedFile = selectedFileIndex !== null ? displayFiles[selectedFileIndex] : null;
+
    // Show connect prompt if not connected
    if (!oauthLoading && (!isConnected || isTokenExpired)) {
      return (
@@ -153,12 +207,39 @@
              </p>
            </div>
          ) : (
-           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-             {displayFiles.map((file) => (
-               <FileCard key={file.id} file={file} />
+          <div 
+            className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+            onKeyDown={handleKeyDown}
+            tabIndex={0}
+          >
+            {displayFiles.map((file, index) => (
+              <FileCard 
+                key={file.id} 
+                file={file} 
+                onPreview={() => handleOpenPreview(index)}
+                isSelected={selectedFileIndex === index}
+              />
              ))}
            </div>
          )}
+
+        {/* Lightbox Preview */}
+        <FilePreviewLightbox
+          isOpen={isLightboxOpen}
+          onClose={handleClosePreview}
+          file={selectedFile}
+          onNext={handleNextFile}
+          onPrevious={handlePreviousFile}
+          hasNext={selectedFileIndex !== null && selectedFileIndex < displayFiles.length - 1}
+          hasPrevious={selectedFileIndex !== null && selectedFileIndex > 0}
+        />
+
+        {/* Keyboard hint */}
+        {displayFiles.length > 0 && (
+          <p className="text-center text-xs text-muted-foreground/60">
+            Click a file to preview • Press Space for quick look • Arrow keys to navigate
+          </p>
+        )}
        </div>
      </DashboardLayout>
    );

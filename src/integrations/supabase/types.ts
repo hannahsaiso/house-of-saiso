@@ -182,6 +182,7 @@ export type Database = {
           item_name: string
           notes: string | null
           status: string
+          tags: string[] | null
           updated_at: string
         }
         Insert: {
@@ -192,6 +193,7 @@ export type Database = {
           item_name: string
           notes?: string | null
           status?: string
+          tags?: string[] | null
           updated_at?: string
         }
         Update: {
@@ -202,6 +204,7 @@ export type Database = {
           item_name?: string
           notes?: string | null
           status?: string
+          tags?: string[] | null
           updated_at?: string
         }
         Relationships: []
@@ -776,6 +779,7 @@ export type Database = {
           created_by: string | null
           description: string | null
           due_date: string | null
+          hours_logged: number | null
           id: string
           internal_notes: string | null
           priority: string
@@ -791,6 +795,7 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           due_date?: string | null
+          hours_logged?: number | null
           id?: string
           internal_notes?: string | null
           priority?: string
@@ -806,6 +811,7 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           due_date?: string | null
+          hours_logged?: number | null
           id?: string
           internal_notes?: string | null
           priority?: string
@@ -857,6 +863,54 @@ export type Database = {
           token?: string
         }
         Relationships: []
+      }
+      time_logs: {
+        Row: {
+          created_at: string
+          description: string | null
+          hours: number
+          id: string
+          log_date: string
+          project_id: string
+          task_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          hours: number
+          id?: string
+          log_date?: string
+          project_id: string
+          task_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          hours?: number
+          id?: string
+          log_date?: string
+          project_id?: string
+          task_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_logs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_logs_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {

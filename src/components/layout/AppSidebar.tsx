@@ -1,11 +1,13 @@
- import { LayoutDashboard, FolderKanban, Calendar, Lock, ChevronLeft, ChevronRight, Settings, Crown, CalendarDays, Package, Mail, HardDrive } from "lucide-react";
+ import { LayoutDashboard, FolderKanban, Calendar, Lock, ChevronLeft, ChevronRight, Settings, Crown, CalendarDays, Package, Mail, HardDrive, ChevronDown } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
+import { useState } from "react";
 import {
   Sidebar,
   SidebarContent,
   SidebarGroup,
   SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -19,7 +21,8 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { FinancialHealthWidget } from "./FinancialHealthWidget";
 import { RevenuePulse } from "@/components/admin/RevenuePulse";
 import { Separator } from "@/components/ui/separator";
- import { GoogleConnectionStatus } from "./GoogleConnectionStatus";
+import { GoogleConnectionStatus } from "./GoogleConnectionStatus";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface NavItem {
   title: string;
@@ -27,20 +30,101 @@ interface NavItem {
   icon: React.ElementType;
   adminOnly?: boolean;
   adminOrStaffOnly?: boolean;
+  group: "work" | "studio" | "admin";
+  showConnectionStatus?: boolean;
 }
 
 const navItems: NavItem[] = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard },
-  { title: "Executive", url: "/admin/dashboard", icon: Crown, adminOnly: true },
-  { title: "Projects", url: "/projects", icon: FolderKanban },
-  { title: "Mail", url: "/inbox", icon: Mail, adminOrStaffOnly: true },
-  { title: "Calendar", url: "/calendar", icon: CalendarDays },
-  { title: "Studio", url: "/studio", icon: Calendar },
-  { title: "Drive", url: "/drive", icon: HardDrive, adminOrStaffOnly: true },
-  { title: "Inventory", url: "/inventory", icon: Package, adminOrStaffOnly: true },
-  { title: "Vault", url: "/vault", icon: Lock, adminOnly: true },
-  { title: "Settings", url: "/settings/integrations", icon: Settings },
+  // WORK Group
+  { title: "Dashboard", url: "/", icon: LayoutDashboard, group: "work" },
+  { title: "Executive", url: "/admin/dashboard", icon: Crown, adminOnly: true, group: "work" },
+  { title: "Projects", url: "/projects", icon: FolderKanban, group: "work" },
+  { title: "Calendar", url: "/calendar", icon: CalendarDays, group: "work" },
+  // STUDIO Group
+  { title: "Studio", url: "/studio", icon: Calendar, group: "studio" },
+  { title: "Inventory", url: "/inventory", icon: Package, adminOrStaffOnly: true, group: "studio" },
+  { title: "Drive", url: "/drive", icon: HardDrive, adminOrStaffOnly: true, group: "studio" },
+  // ADMIN Group
+  { title: "Mail", url: "/inbox", icon: Mail, adminOrStaffOnly: true, group: "admin", showConnectionStatus: true },
+  { title: "Vault", url: "/vault", icon: Lock, adminOnly: true, group: "admin" },
+  { title: "Settings", url: "/settings/integrations", icon: Settings, group: "admin" },
 ];
+
+interface NavGroupProps {
+  label: string;
+  number: string;
+  items: NavItem[];
+  collapsed: boolean;
+  currentPath: string;
+  isAdmin: boolean;
+  isAdminOrStaff: boolean;
+}
+
+function NavGroup({ label, number, items, collapsed, currentPath, isAdmin, isAdminOrStaff }: NavGroupProps) {
+  const filteredItems = items.filter((item) => {
+    if (item.adminOnly && !isAdmin) return false;
+    if (item.adminOrStaffOnly && !isAdminOrStaff) return false;
+    return true;
+  });
+
+  const hasActiveItem = filteredItems.some((item) => currentPath === item.url);
+  const [isOpen, setIsOpen] = useState(true);
+
+  if (filteredItems.length === 0) return null;
+
+  return (
+    <Collapsible open={isOpen} onOpenChange={setIsOpen} className="group/collapsible">
+      {!collapsed && (
+        <CollapsibleTrigger className="flex w-full items-center justify-between px-3 py-2 hover:bg-sidebar-accent/50 rounded-sm transition-colors">
+          <span className="font-heading text-[10px] font-medium uppercase tracking-editorial text-sidebar-foreground/40">
+            <span className="text-sidebar-primary/60">{number}</span> {label}
+          </span>
+          <ChevronDown className={cn(
+            "h-3 w-3 text-sidebar-foreground/30 transition-transform duration-200",
+            isOpen && "rotate-180"
+          )} />
+        </CollapsibleTrigger>
+      )}
+      <CollapsibleContent className="space-y-0.5">
+        <SidebarMenu className="space-y-0.5">
+          {filteredItems.map((item) => {
+            const isActive = currentPath === item.url;
+            return (
+              <SidebarMenuItem key={item.title}>
+                <SidebarMenuButton
+                  asChild
+                  tooltip={collapsed ? item.title : undefined}
+                >
+                  <NavLink
+                    to={item.url}
+                    className={cn(
+                      "flex items-center gap-3 rounded-sm px-3 py-2.5 font-heading text-[11px] font-medium tracking-widest transition-all duration-200",
+                      "text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+                      isActive && "bg-sidebar-accent text-sidebar-primary"
+                    )}
+                  >
+                    <item.icon
+                      className={cn(
+                        "h-4 w-4 shrink-0 stroke-[1.5]",
+                        isActive && "text-sidebar-primary"
+                      )}
+                    />
+                    {!collapsed && (
+                      <div className="flex items-center justify-between flex-1">
+                        <span>{item.title}</span>
+                        {item.showConnectionStatus && <GoogleConnectionStatus />}
+                      </div>
+                    )}
+                  </NavLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            );
+          })}
+        </SidebarMenu>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
 
 export function AppSidebar() {
   const { state, toggleSidebar } = useSidebar();
@@ -48,11 +132,9 @@ export function AppSidebar() {
   const location = useLocation();
   const { isAdmin, isAdminOrStaff, isLoading } = useUserRole();
 
-  const filteredItems = navItems.filter((item) => {
-    if (item.adminOnly && !isAdmin) return false;
-    if (item.adminOrStaffOnly && !isAdminOrStaff) return false;
-    return true;
-  });
+  const workItems = navItems.filter((item) => item.group === "work");
+  const studioItems = navItems.filter((item) => item.group === "studio");
+  const adminItems = navItems.filter((item) => item.group === "admin");
 
   return (
     <Sidebar
@@ -80,45 +162,35 @@ export function AppSidebar() {
 
       {/* Navigation */}
       <SidebarContent className="px-2 py-4">
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu className="space-y-1">
-              {filteredItems.map((item) => {
-                const isActive = location.pathname === item.url;
-                return (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton
-                      asChild
-                      tooltip={collapsed ? item.title : undefined}
-                    >
-                      <NavLink
-                        to={item.url}
-                        className={cn(
-                          "flex items-center gap-3 rounded-sm px-3 py-3 font-heading text-xs font-medium tracking-widest transition-all duration-200",
-                          "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground",
-                          isActive && "bg-sidebar-accent text-sidebar-primary"
-                        )}
-                      >
-                        <item.icon
-                          className={cn(
-                            "h-4 w-4 shrink-0",
-                            isActive && "text-sidebar-primary"
-                          )}
-                        />
-                         {!collapsed && (
-                           <div className="flex items-center justify-between flex-1">
-                             <span>{item.title}</span>
-                             {item.url === "/inbox" && <GoogleConnectionStatus />}
-                           </div>
-                         )}
-                      </NavLink>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        <div className="space-y-4">
+          <NavGroup 
+            label="Work" 
+            number="01" 
+            items={workItems} 
+            collapsed={collapsed}
+            currentPath={location.pathname}
+            isAdmin={isAdmin}
+            isAdminOrStaff={isAdminOrStaff}
+          />
+          <NavGroup 
+            label="Studio" 
+            number="02" 
+            items={studioItems} 
+            collapsed={collapsed}
+            currentPath={location.pathname}
+            isAdmin={isAdmin}
+            isAdminOrStaff={isAdminOrStaff}
+          />
+          <NavGroup 
+            label="Admin" 
+            number="03" 
+            items={adminItems} 
+            collapsed={collapsed}
+            currentPath={location.pathname}
+            isAdmin={isAdmin}
+            isAdminOrStaff={isAdminOrStaff}
+          />
+        </div>
 
         {/* Financial Health Widget - Admin only */}
         {isAdmin && !collapsed && (
