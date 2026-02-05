@@ -8,6 +8,7 @@ import { Upload, X, FileImage, FileText, Loader2, Check, Plus, Link as LinkIcon,
  import { supabase } from "@/integrations/supabase/client";
  import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Helmet } from "react-helmet-async";
  
  interface UploadedFile {
    id: string;
@@ -36,12 +37,63 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
    const [showSuccess, setShowSuccess] = useState(false);
    const [uploadedCount, setUploadedCount] = useState(0);
   const [submittedClientName, setSubmittedClientName] = useState("");
+  const [isAlreadyCompleted, setIsAlreadyCompleted] = useState(false);
+
+  // Allowed file types for security
+  const ALLOWED_FILE_TYPES = [
+    'image/jpeg', 'image/jpg', 'image/png', 'image/svg+xml', 'image/webp', 'image/gif',
+    'application/pdf',
+    'application/postscript', // .ai, .eps
+    'application/illustrator',
+    'application/zip', 'application/x-zip-compressed',
+    'video/quicktime', 'video/mp4', // .mov, .mp4
+    'font/otf', 'font/ttf', 'font/woff', 'font/woff2',
+    'application/x-font-otf', 'application/x-font-ttf',
+  ];
+
+  const ALLOWED_EXTENSIONS = [
+    '.jpg', '.jpeg', '.png', '.svg', '.webp', '.gif',
+    '.pdf', '.ai', '.eps',
+    '.zip',
+    '.mov', '.mp4',
+    '.otf', '.ttf', '.woff', '.woff2'
+  ];
+
+  const BLOCKED_EXTENSIONS = ['.exe', '.js', '.jsx', '.ts', '.tsx', '.bat', '.cmd', '.sh', '.php', '.py', '.rb'];
+
+  // Sanitize text input to prevent XSS
+  const sanitizeInput = (input: string): string => {
+    return input
+      .replace(/[<>]/g, '') // Remove angle brackets
+      .replace(/javascript:/gi, '') // Remove javascript: protocol
+      .replace(/on\w+=/gi, '') // Remove event handlers
+      .replace(/data:/gi, '') // Remove data: protocol
+      .trim();
+  };
+
+  // Validate file type
+  const isValidFileType = (file: File): boolean => {
+    const extension = '.' + file.name.split('.').pop()?.toLowerCase();
+    
+    // Block dangerous extensions
+    if (BLOCKED_EXTENSIONS.includes(extension)) {
+      return false;
+    }
+    
+    // Check if extension is allowed
+    if (!ALLOWED_EXTENSIONS.includes(extension)) {
+      return false;
+    }
+    
+    return true;
+  };
  
    // Validate token on mount
    useEffect(() => {
      async function validateToken() {
        if (!token) {
-         setError("Missing access token");
+        // Return 404-style error for missing token (security obfuscation)
+        setError("Page not found");
          setIsValidating(false);
          return;
        }
@@ -51,9 +103,21 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
            body: { token, action: "validate" },
          });
  
-         if (error || data?.error) {
-           setError(data?.error || "Invalid access link");
+        if (error || data?.error === "not_found") {
+          // Return 404 for invalid tokens (security obfuscation)
+          setError("Page not found");
+          setIsValid(false);
+        } else if (data?.error) {
+          setError(data.error);
            setIsValid(false);
+        } else if (data?.already_completed) {
+          // Show success page for already completed submissions
+          setIsValid(true);
+          setIsAlreadyCompleted(true);
+          setClientName(data.client_name);
+          setProjectTitle(data.project_title);
+          setSubmittedClientName(data.client_name);
+          setShowSuccess(true);
          } else {
            setIsValid(true);
            setProjectTitle(data.project_title);
@@ -65,7 +129,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
          }
        } catch (err) {
          console.error("Validation error:", err);
-         setError("Failed to validate access link");
+        setError("Page not found");
        } finally {
          setIsValidating(false);
        }
@@ -122,6 +186,16 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
  
    const processFiles = async (newFiles: File[]) => {
      for (const file of newFiles) {
+      // Validate file type before processing
+      if (!isValidFileType(file)) {
+        toast({
+          title: "File type not allowed",
+          description: `${file.name} cannot be uploaded. Only images, PDFs, fonts, and design files are accepted.`,
+          variant: "destructive",
+        });
+        continue;
+      }
+
        const tempId = crypto.randomUUID();
        const tempFile: UploadedFile = {
          id: tempId,
@@ -173,7 +247,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
    };
  
    const updateAnchor = (index: number, value: string) => {
-     setVisualAnchors(prev => prev.map((a, i) => i === index ? value : a));
+      // Sanitize URL input
+      const sanitized = sanitizeInput(value);
+      setVisualAnchors(prev => prev.map((a, i) => i === index ? sanitized : a));
    };
  
    const removeAnchor = (index: number) => {
@@ -181,10 +257,15 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
    };
  
    const handleComplete = async () => {
+      if (isAlreadyCompleted) return; // Prevent double submission
+      
      setIsSubmitting(true);
  
      try {
-       const validAnchors = visualAnchors.filter(a => a.trim().length > 0);
+        // Sanitize all anchors before submission
+        const validAnchors = visualAnchors
+          .map(a => sanitizeInput(a))
+          .filter(a => a.trim().length > 0);
        
        const { data, error } = await supabase.functions.invoke("client-intake-upload", {
          body: {
@@ -232,13 +313,19 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
    if (!isValid || error) {
      return (
        <div className="min-h-screen bg-background flex items-center justify-center px-4">
+          <Helmet>
+            <meta name="robots" content="noindex, nofollow" />
+            <title>Page Not Found</title>
+          </Helmet>
          <div className="text-center max-w-md">
            <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-6">
              <X className="w-8 h-8 text-destructive" />
            </div>
-           <h1 className="font-serif text-2xl text-foreground mb-3">Access Denied</h1>
+            <h1 className="font-serif text-2xl text-foreground mb-3">Page Not Found</h1>
            <p className="text-muted-foreground">
-             {error || "This link is no longer valid or has expired. Please contact the team for a new access link."}
+              {error === "Page not found" 
+                ? "The page you're looking for doesn't exist."
+                : error || "This link is no longer valid or has expired."}
            </p>
          </div>
        </div>
@@ -249,6 +336,10 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
     if (showSuccess) {
       return (
         <div className="min-h-screen bg-background">
+           <Helmet>
+             <meta name="robots" content="noindex, nofollow" />
+             <title>Submission Complete | House of Saiso</title>
+           </Helmet>
           <main className="max-w-2xl mx-auto px-6 py-16 md:py-24">
             {/* Success Header */}
             <motion.div
@@ -358,6 +449,10 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
     return (
       <div className="min-h-screen bg-background">
+         <Helmet>
+           <meta name="robots" content="noindex, nofollow" />
+           <title>Brand Asset Submission | House of Saiso</title>
+         </Helmet>
         {/* Editorial Header */}
        <header className="border-b border-border/50 bg-background/95 backdrop-blur-sm sticky top-0 z-10">
          <div className="max-w-3xl mx-auto px-6 py-6">
@@ -415,7 +510,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
                multiple
                onChange={handleFileSelect}
                className="absolute inset-0 opacity-0 cursor-pointer"
-               accept="image/*,.pdf,.ai,.eps,.svg,.otf,.ttf,.woff,.woff2,.zip"
+                accept=".jpg,.jpeg,.png,.svg,.webp,.gif,.pdf,.ai,.eps,.zip,.mov,.mp4,.otf,.ttf,.woff,.woff2"
              />
              <div className="flex flex-col items-center gap-4">
                <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center">
