@@ -15,6 +15,49 @@
    visual_anchors?: string[];
  }
 
+// Allowed file extensions (server-side validation)
+const ALLOWED_EXTENSIONS = [
+  '.jpg', '.jpeg', '.png', '.svg', '.webp', '.gif',
+  '.pdf', '.ai', '.eps',
+  '.zip',
+  '.mov', '.mp4',
+  '.otf', '.ttf', '.woff', '.woff2'
+];
+
+const BLOCKED_EXTENSIONS = [
+  '.exe', '.js', '.jsx', '.ts', '.tsx', '.bat', '.cmd', '.sh', '.php', '.py', '.rb',
+  '.dll', '.com', '.msi', '.scr', '.vbs', '.ps1', '.jar', '.class'
+];
+
+// Validate file name for security
+function isValidFileName(fileName: string): boolean {
+  const extension = '.' + fileName.split('.').pop()?.toLowerCase();
+  
+  // Block dangerous extensions
+  if (BLOCKED_EXTENSIONS.includes(extension)) {
+    console.log(`Blocked dangerous file: ${fileName}`);
+    return false;
+  }
+  
+  // Check if extension is allowed
+  if (!ALLOWED_EXTENSIONS.includes(extension)) {
+    console.log(`File extension not allowed: ${fileName}`);
+    return false;
+  }
+  
+  return true;
+}
+
+// Sanitize text input to prevent XSS
+function sanitizeInput(input: string): string {
+  return input
+    .replace(/[<>]/g, '') // Remove angle brackets
+    .replace(/javascript:/gi, '') // Remove javascript: protocol
+    .replace(/on\w+=/gi, '') // Remove event handlers
+    .replace(/data:/gi, '') // Remove data: protocol  
+    .trim();
+}
+
 // Generate a simple text-based PDF content
 function generateIntakeSummaryPDF(
   clientName: string,
@@ -323,30 +366,30 @@ House of Saiso`;
      const body: IntakeRequest = await req.json();
      const { token, action } = body;
  
+      // Validate token format (must be 64 character hex string)
+      if (!token || typeof token !== 'string' || !/^[a-f0-9]{64}$/i.test(token)) {
+        // Return 404 to prevent token enumeration
+        return new Response(
+          JSON.stringify({ error: "not_found" }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
      // Validate token
      const { data: intakeToken, error: tokenError } = await supabase
        .from("client_intake_tokens")
        .select(`
          *,
-         projects!inner(id, title, client_id, intake_folder_id, created_by, clients(name, company))
+          projects!inner(id, title, client_id, intake_folder_id, created_by, onboarding_status, clients(name, company, email))
        `)
        .eq("token", token)
-       .eq("is_active", true)
        .single();
  
      if (tokenError || !intakeToken) {
-       console.error("Invalid token:", tokenError);
+        // Return 404 to prevent token enumeration attacks
        return new Response(
-         JSON.stringify({ error: "Invalid or expired access link" }),
-         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-       );
-     }
- 
-     // Check expiration
-     if (intakeToken.expires_at && new Date(intakeToken.expires_at) < new Date()) {
-       return new Response(
-         JSON.stringify({ error: "This access link has expired" }),
-         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          JSON.stringify({ error: "not_found" }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
        );
      }
  
@@ -355,6 +398,26 @@ House of Saiso`;
  
      // Handle validation request
      if (action === "validate") {
+        // Check if already completed - show success page but don't allow new submissions
+        if (!intakeToken.is_active || intakeToken.completed_at || project.onboarding_status === "completed") {
+          return new Response(
+            JSON.stringify({
+              already_completed: true,
+              project_title: project.title,
+              client_name: clientName,
+            }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        
+        // Check expiration
+        if (intakeToken.expires_at && new Date(intakeToken.expires_at) < new Date()) {
+          return new Response(
+            JSON.stringify({ error: "This access link has expired" }),
+            { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        
        return new Response(
          JSON.stringify({
            valid: true,
@@ -367,6 +430,22 @@ House of Saiso`;
        );
      }
  
+      // For upload and complete actions, verify token is still active
+      if (!intakeToken.is_active || intakeToken.completed_at) {
+        return new Response(
+          JSON.stringify({ error: "This submission has already been completed" }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      
+      // Check expiration for non-validate actions
+      if (intakeToken.expires_at && new Date(intakeToken.expires_at) < new Date()) {
+        return new Response(
+          JSON.stringify({ error: "This access link has expired" }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
      // Get admin's Google OAuth token
      const { data: tokenData, error: oauthError } = await supabase
        .from("google_oauth_tokens")
@@ -420,6 +499,14 @@ House of Saiso`;
          );
        }
  
+        // Server-side file type validation
+        if (!isValidFileName(file_name)) {
+          return new Response(
+            JSON.stringify({ error: "File type not allowed" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
        // Decode base64 file data
        const binaryString = atob(file_data);
        const bytes = new Uint8Array(binaryString.length);
@@ -466,13 +553,16 @@ House of Saiso`;
      if (action === "complete") {
        const { visual_anchors } = body;
  
+        // Sanitize all visual anchors
+        const sanitizedAnchors = (visual_anchors || []).map((anchor: string) => sanitizeInput(anchor));
+
        // Update token as completed and deactivate
        await supabase
          .from("client_intake_tokens")
          .update({
            is_active: false,
            completed_at: new Date().toISOString(),
-           visual_anchors: visual_anchors || [],
+            visual_anchors: sanitizedAnchors,
          })
          .eq("id", intakeToken.id);
  
@@ -483,7 +573,7 @@ House of Saiso`;
          .eq("id", project.id);
  
        // Update knowledge vault with visual anchors if they exist
-       if (visual_anchors && visual_anchors.length > 0) {
+        if (sanitizedAnchors && sanitizedAnchors.length > 0) {
          const { data: vault } = await supabase
            .from("project_knowledge_vault")
            .select("id")
@@ -498,7 +588,7 @@ House of Saiso`;
              .eq("id", vault.id)
              .single();
  
-           const anchorsSection = `\n\n## Visual Anchors & References\n\n${visual_anchors.map((url: string) => `- [Reference](${url})`).join("\n")}`;
+            const anchorsSection = `\n\n## Visual Anchors & References\n\n${sanitizedAnchors.map((url: string) => `- [Reference](${url})`).join("\n")}`;
            
            await supabase
              .from("project_knowledge_vault")
@@ -517,7 +607,7 @@ House of Saiso`;
       const pdfContent = generateIntakeSummaryPDF(
         clientName,
         project.title,
-        visual_anchors || [],
+          sanitizedAnchors,
         filesCount
       );
       
