@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bell, Check, FileSignature, Upload, X } from "lucide-react";
+ import { Bell, Check, FileSignature, Upload, X, Sparkles, Calendar } from "lucide-react";
+ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -16,17 +17,32 @@ const typeIcons: Record<string, React.ElementType> = {
   signature_sent: FileSignature,
   document_signed: FileSignature,
   asset_uploaded: Upload,
+   intake_complete: Sparkles,
+   client_onboarded: Sparkles,
+   booking_inquiry: Calendar,
   default: Bell,
 };
 
 export function NotificationBell() {
   const [open, setOpen] = useState(false);
+   const navigate = useNavigate();
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
 
-  const handleMarkAsRead = (notification: Notification) => {
+   const handleNotificationClick = (notification: Notification) => {
     if (!notification.read) {
       markAsRead.mutate(notification.id);
     }
+     
+     // Navigate based on notification type and data
+     const data = notification.data as Record<string, unknown> | null;
+     if (data?.project_id) {
+       if (data.navigate_to === "knowledge_vault") {
+         navigate(`/projects?id=${data.project_id}&tab=vault`);
+       } else {
+         navigate(`/projects?id=${data.project_id}`);
+       }
+       setOpen(false);
+     }
   };
 
   return (
@@ -83,11 +99,12 @@ export function NotificationBell() {
                     key={notification.id}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    className={cn(
-                      "flex gap-3 p-4 transition-colors hover:bg-muted/50",
-                      !notification.read && "bg-primary/5"
-                    )}
-                    onClick={() => handleMarkAsRead(notification)}
+                     onClick={() => handleNotificationClick(notification)}
+                     role="button"
+                     className={cn(
+                       "flex gap-3 p-4 transition-colors hover:bg-muted/50 cursor-pointer",
+                       !notification.read && "bg-primary/5"
+                     )}
                   >
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted">
                       <Icon className="h-4 w-4 text-muted-foreground" />
