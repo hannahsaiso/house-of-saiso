@@ -167,6 +167,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
            <ResourcesTab 
              projectId={project.id} 
              brandAssetsFolderId={project.client?.brand_assets_folder}
+              clientId={project.client_id}
            />
         </TabsContent>
 

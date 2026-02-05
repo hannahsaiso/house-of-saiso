@@ -14,6 +14,63 @@ export type Database = {
   }
   public: {
     Tables: {
+      client_intake_tokens: {
+        Row: {
+          client_id: string | null
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          project_id: string
+          token: string
+          uploaded_files_count: number | null
+          visual_anchors: Json | null
+        }
+        Insert: {
+          client_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          project_id: string
+          token?: string
+          uploaded_files_count?: number | null
+          visual_anchors?: Json | null
+        }
+        Update: {
+          client_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          project_id?: string
+          token?: string
+          uploaded_files_count?: number | null
+          visual_anchors?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_intake_tokens_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_intake_tokens_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: true
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           brand_assets_folder: string | null
@@ -653,6 +710,8 @@ export type Database = {
           description: string | null
           due_date: string | null
           id: string
+          intake_folder_id: string | null
+          onboarding_status: string | null
           status: string
           title: string
           updated_at: string
@@ -666,6 +725,8 @@ export type Database = {
           description?: string | null
           due_date?: string | null
           id?: string
+          intake_folder_id?: string | null
+          onboarding_status?: string | null
           status?: string
           title: string
           updated_at?: string
@@ -679,6 +740,8 @@ export type Database = {
           description?: string | null
           due_date?: string | null
           id?: string
+          intake_folder_id?: string | null
+          onboarding_status?: string | null
           status?: string
           title?: string
           updated_at?: string

@@ -9,6 +9,7 @@ import Studio from "./pages/Studio";
 import Vault from "./pages/Vault";
 import PublicCalendar from "./pages/PublicCalendar";
 import Onboarding from "./pages/Onboarding";
+ import ClientIntake from "./pages/ClientIntake";
 import Settings from "./pages/Settings";
 import Integrations from "./pages/settings/Integrations";
 import IntegrationsCallback from "./pages/settings/IntegrationsCallback";
@@ -40,6 +41,7 @@ const App = () => (
            <Route path="/inbox" element={<Inbox />} />
           <Route path="/drive" element={<Drive />} />
           <Route path="/onboarding" element={<Onboarding />} />
+           <Route path="/intake/:projectId" element={<ClientIntake />} />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/settings" element={<Settings />}>
             <Route path="profile" element={<ProfileSettings />} />
