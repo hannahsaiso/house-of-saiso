@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { useProfile } from "@/hooks/useProfile";
 import { useUserRole } from "@/hooks/useUserRole";
+ import { GoogleWorkspaceCard } from "@/components/settings/GoogleWorkspaceCard";
 
 export default function ProfileSettings() {
   const { profile, isLoading, updateProfile, uploadAvatar } = useProfile();
@@ -173,7 +174,17 @@ export default function ProfileSettings() {
         </CardContent>
       </Card>
 
-      <div className="flex justify-end">
+       {/* Connected Services - Google Workspace */}
+       <Card>
+         <CardHeader>
+           <CardTitle className="text-lg">Connected Services</CardTitle>
+         </CardHeader>
+         <CardContent className="p-0">
+           <GoogleWorkspaceCard />
+         </CardContent>
+       </Card>
+ 
+       <div className="flex justify-end">
         <Button onClick={handleSave} disabled={updateProfile.isPending} className="gap-2">
           {updateProfile.isPending ? (
             <Loader2 className="h-4 w-4 animate-spin" />

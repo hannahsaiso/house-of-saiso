@@ -1,4 +1,4 @@
-import { LayoutDashboard, FolderKanban, Calendar, Lock, ChevronLeft, ChevronRight, Settings, Crown, CalendarDays, Package } from "lucide-react";
+ import { LayoutDashboard, FolderKanban, Calendar, Lock, ChevronLeft, ChevronRight, Settings, Crown, CalendarDays, Package, Mail } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import {
@@ -19,6 +19,7 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { FinancialHealthWidget } from "./FinancialHealthWidget";
 import { RevenuePulse } from "@/components/admin/RevenuePulse";
 import { Separator } from "@/components/ui/separator";
+ import { GoogleConnectionStatus } from "./GoogleConnectionStatus";
 
 interface NavItem {
   title: string;
@@ -31,6 +32,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { title: "DASHBOARD", url: "/", icon: LayoutDashboard },
   { title: "EXECUTIVE", url: "/admin/dashboard", icon: Crown, adminOnly: true },
+   { title: "INBOX", url: "/inbox", icon: Mail, adminOrStaffOnly: true },
   { title: "CALENDAR", url: "/calendar", icon: CalendarDays },
   { title: "PROJECTS", url: "/projects", icon: FolderKanban },
   { title: "STUDIO", url: "/studio", icon: Calendar },
@@ -102,7 +104,12 @@ export function AppSidebar() {
                             isActive && "text-sidebar-primary"
                           )}
                         />
-                        {!collapsed && <span>{item.title}</span>}
+                         {!collapsed && (
+                           <div className="flex items-center justify-between flex-1">
+                             <span>{item.title}</span>
+                             {item.url === "/inbox" && <GoogleConnectionStatus />}
+                           </div>
+                         )}
                       </NavLink>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
