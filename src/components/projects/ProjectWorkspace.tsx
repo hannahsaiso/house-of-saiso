@@ -5,9 +5,9 @@ import {
   Palette, 
   FileText, 
   CheckSquare, 
-  MessageSquare,
   Archive,
-  ExternalLink
+   BookOpen,
+   Lightbulb,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,10 @@ import { Project, useProjects } from "@/hooks/useProjects";
 import { DesignTab } from "./tabs/DesignTab";
 import { ResourcesTab } from "./tabs/ResourcesTab";
 import { DocumentsTab } from "./tabs/DocumentsTab";
+ import { IntakeCanvasTab } from "./tabs/IntakeCanvasTab";
+ import { KnowledgeVaultTab } from "./tabs/KnowledgeVaultTab";
 import { TemporalWorkflow } from "./TemporalWorkflow";
+ import { ProjectDnaTags } from "./ProjectDnaTags";
 import { useUserRole } from "@/hooks/useUserRole";
 import {
   AlertDialog,
@@ -66,6 +69,10 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
               {project.status}
             </Badge>
           </div>
+           {/* DNA Tags */}
+           <div className="mt-2">
+             <ProjectDnaTags projectId={project.id} />
+           </div>
           {project.client && (
             <p className="mt-1 text-muted-foreground">
               {project.client.name}
@@ -111,11 +118,21 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2 gap-1 sm:w-auto sm:grid-cols-4 lg:grid-cols-4">
+         <TabsList className="flex w-full flex-wrap gap-1 sm:w-auto">
           <TabsTrigger value="tasks" className="gap-2">
             <CheckSquare className="h-4 w-4" />
             <span className="hidden sm:inline">Tasks</span>
           </TabsTrigger>
+           {isAdminOrStaff && (
+             <TabsTrigger value="intake" className="gap-2">
+               <Lightbulb className="h-4 w-4" />
+               <span className="hidden sm:inline">Intake Canvas</span>
+             </TabsTrigger>
+           )}
+           <TabsTrigger value="vault" className="gap-2">
+             <BookOpen className="h-4 w-4" />
+             <span className="hidden sm:inline">Knowledge Vault</span>
+           </TabsTrigger>
           <TabsTrigger value="design" className="gap-2">
             <Palette className="h-4 w-4" />
             <span className="hidden sm:inline">Design</span>
@@ -134,12 +151,23 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
           <TemporalWorkflow projectId={project.id} />
         </TabsContent>
 
+         <TabsContent value="intake" className="mt-6">
+           <IntakeCanvasTab projectId={project.id} />
+         </TabsContent>
+ 
+         <TabsContent value="vault" className="mt-6">
+           <KnowledgeVaultTab projectId={project.id} />
+         </TabsContent>
+ 
         <TabsContent value="design" className="mt-6">
           <DesignTab projectId={project.id} />
         </TabsContent>
 
         <TabsContent value="resources" className="mt-6">
-          <ResourcesTab projectId={project.id} />
+           <ResourcesTab 
+             projectId={project.id} 
+             brandAssetsFolderId={project.client?.brand_assets_folder}
+           />
         </TabsContent>
 
         <TabsContent value="documents" className="mt-6">

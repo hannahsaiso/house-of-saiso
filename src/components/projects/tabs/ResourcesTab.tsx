@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Folder, Plus, ExternalLink, Trash2, FolderOpen } from "lucide-react";
+ import { Folder, Plus, ExternalLink, Trash2, FolderOpen, Copy, Check, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,19 +17,38 @@ import {
 } from "@/components/ui/dialog";
 import { useProjectResources } from "@/hooks/useProjectResources";
 import { useUserRole } from "@/hooks/useUserRole";
+ import { toast } from "sonner";
 
 interface ResourcesTabProps {
   projectId: string;
+   brandAssetsFolderId?: string | null;
 }
 
-export function ResourcesTab({ projectId }: ResourcesTabProps) {
+ export function ResourcesTab({ projectId, brandAssetsFolderId }: ResourcesTabProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [url, setUrl] = useState("");
   const [description, setDescription] = useState("");
+   const [copied, setCopied] = useState(false);
   const { driveLinks, addResource, removeResource, isLoading } = useProjectResources(projectId);
   const { isAdminOrStaff } = useUserRole();
 
+   const uploadFolderUrl = brandAssetsFolderId
+     ? `https://drive.google.com/drive/folders/${brandAssetsFolderId}?usp=sharing`
+     : null;
+ 
+   const handleCopyUploadLink = async () => {
+     if (!uploadFolderUrl) return;
+     try {
+       await navigator.clipboard.writeText(uploadFolderUrl);
+       setCopied(true);
+       toast.success("Upload link copied to clipboard");
+       setTimeout(() => setCopied(false), 2000);
+     } catch {
+       toast.error("Failed to copy link");
+     }
+   };
+ 
   const handleAddLink = () => {
     if (!title.trim() || !url.trim()) return;
 
@@ -71,7 +90,29 @@ export function ResourcesTab({ projectId }: ResourcesTabProps) {
             Quick access to Google Drive folders and shared resources
           </p>
         </div>
-        {isAdminOrStaff && (
+         <div className="flex items-center gap-2">
+           {/* Copy Upload Link for Client Assets */}
+           {isAdminOrStaff && uploadFolderUrl && (
+             <Button
+               variant="outline"
+               size="sm"
+               className="gap-2"
+               onClick={handleCopyUploadLink}
+             >
+               {copied ? (
+                 <>
+                   <Check className="h-4 w-4 text-primary" />
+                   Copied!
+                 </>
+               ) : (
+                 <>
+                   <Upload className="h-4 w-4" />
+                   Copy Upload Link
+                 </>
+               )}
+             </Button>
+           )}
+           {isAdminOrStaff && (
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button size="sm" className="gap-2">
@@ -126,7 +167,8 @@ export function ResourcesTab({ projectId }: ResourcesTabProps) {
               </DialogFooter>
             </DialogContent>
           </Dialog>
-        )}
+           )}
+         </div>
       </div>
 
       {/* Resource Links */}

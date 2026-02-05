@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.create-project-drive]
 verify_jwt = false
+ 
+ [functions.generate-project-charter]
+ verify_jwt = false
