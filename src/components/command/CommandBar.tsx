@@ -6,7 +6,8 @@ import {
   Users, 
   Receipt,
   Search,
-  Loader2
+  Loader2,
+  Sparkles
 } from "lucide-react";
 import {
   CommandDialog,
@@ -17,8 +18,10 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { useProjects } from "@/hooks/useProjects";
+import { useAISearch } from "@/hooks/useAISearch";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserRole } from "@/hooks/useUserRole";
+import { cn } from "@/lib/utils";
 
 interface SearchResult {
   id: string;
@@ -36,6 +39,7 @@ export function CommandBar() {
   const navigate = useNavigate();
   const { projects } = useProjects();
   const { isAdmin, isAdminOrStaff } = useUserRole();
+  const { performAISearch, aiAnswer, isSearching: isAISearching, clearAIAnswer } = useAISearch();
 
   // CMD+K handler
   useEffect(() => {
@@ -49,6 +53,15 @@ export function CommandBar() {
     document.addEventListener("keydown", down);
     return () => document.removeEventListener("keydown", down);
   }, []);
+
+  // Clear AI answer when dialog closes
+  useEffect(() => {
+    if (!open) {
+      clearAIAnswer();
+      setQuery("");
+      setResults([]);
+    }
+  }, [open, clearAIAnswer]);
 
   // Search function
   const performSearch = useCallback(async (searchQuery: string) => {
@@ -136,18 +149,23 @@ export function CommandBar() {
       }
 
       setResults(searchResults);
+
+      // Trigger AI search for questions
+      if (searchQuery.length > 5) {
+        performAISearch(searchQuery);
+      }
     } catch (error) {
       console.error("Search error:", error);
     } finally {
       setIsSearching(false);
     }
-  }, [projects, isAdmin, isAdminOrStaff]);
+  }, [projects, isAdmin, isAdminOrStaff, performAISearch]);
 
   // Debounced search
   useEffect(() => {
     const timer = setTimeout(() => {
       performSearch(query);
-    }, 200);
+    }, 300);
 
     return () => clearTimeout(timer);
   }, [query, performSearch]);
@@ -196,16 +214,45 @@ export function CommandBar() {
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>
       <CommandInput
-        placeholder="Search projects, tasks, clients..."
+        placeholder="Search or ask a question..."
         value={query}
         onValueChange={setQuery}
       />
-      <CommandList>
-        {isSearching ? (
+      <CommandList className="max-h-[400px]">
+        {/* AI Answer Section */}
+        {(isAISearching || aiAnswer) && (
+          <div className="border-b border-border/50 px-4 py-4 bg-primary/5">
+            <div className="flex items-start gap-3">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                {isAISearching ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                ) : (
+                  <Sparkles className="h-3.5 w-3.5 text-primary" />
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] font-mono uppercase tracking-widest text-primary/70 mb-1">
+                  AI Answer
+                </p>
+                {isAISearching ? (
+                  <p className="text-sm text-muted-foreground animate-pulse">
+                    Thinking...
+                  </p>
+                ) : (
+                  <p className="text-sm text-foreground leading-relaxed">
+                    {aiAnswer}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {isSearching && !aiAnswer ? (
           <div className="flex items-center justify-center py-6">
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
           </div>
-        ) : results.length === 0 && query ? (
+        ) : results.length === 0 && query && !aiAnswer ? (
           <CommandEmpty>No results found.</CommandEmpty>
         ) : (
           Object.entries(groupedResults).map(([type, items]) => (
@@ -238,8 +285,11 @@ export function CommandBar() {
         {!query && (
           <div className="px-4 py-6 text-center text-sm text-muted-foreground">
             <Search className="mx-auto mb-2 h-8 w-8 text-muted-foreground/50" />
-            <p>Start typing to search...</p>
-            <p className="mt-1 font-mono text-xs">⌘K to open • ESC to close</p>
+            <p>Search or ask a question...</p>
+            <p className="mt-1 text-xs text-muted-foreground/70">
+              Try: "Who worked on the last project?" or "List overdue tasks"
+            </p>
+            <p className="mt-2 font-mono text-xs">⌘K to open • ESC to close</p>
           </div>
         )}
       </CommandList>
