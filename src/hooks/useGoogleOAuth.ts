@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useProfile } from "./useProfile";
 
 interface GoogleOAuthToken {
   id: string;
@@ -16,6 +17,7 @@ interface GoogleOAuthToken {
 
 export function useGoogleOAuth() {
   const queryClient = useQueryClient();
+  const { profile } = useProfile();
 
   const { data: connection, isLoading, error } = useQuery({
     queryKey: ["google-oauth-connection"],
@@ -84,10 +86,22 @@ export function useGoogleOAuth() {
         });
 
       if (error) throw error;
+
+      // Trigger zero-config staff folder setup
+      try {
+        const staffName = profile?.full_name || user.email?.split("@")[0] || "Staff";
+        await supabase.functions.invoke("setup-staff-drive", {
+          body: { user_id: user.id, staff_name: staffName },
+        });
+        console.log("Staff drive folders created automatically");
+      } catch (setupError) {
+        // Don't fail the connection if folder setup fails
+        console.error("Optional staff folder setup failed:", setupError);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["google-oauth-connection"] });
-      toast.success("Google Workspace connected successfully");
+      toast.success("Google Workspace connected! Drive folders created automatically.");
     },
     onError: (error) => {
       toast.error("Failed to save connection: " + error.message);

@@ -1,8 +1,9 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { DollarSign, Users, Database } from "lucide-react";
+import { DollarSign, Users, Database, BarChart3 } from "lucide-react";
 import { FinancialLedger } from "./FinancialLedger";
 import { TeamTab } from "./TeamTab";
 import { ClientDatabaseTab } from "./ClientDatabaseTab";
+import { ProfitabilityAnalytics } from "./ProfitabilityAnalytics";
 import { useUserRole } from "@/hooks/useUserRole";
 
 export function VaultTabs() {
@@ -26,6 +27,15 @@ export function VaultTabs() {
         )}
         {isAdmin && (
           <TabsTrigger
+            value="profitability"
+            className="gap-2 rounded-none border-b-2 border-transparent px-6 py-3 text-[hsl(var(--vault-muted))] data-[state=active]:border-[hsl(var(--vault-accent))] data-[state=active]:bg-transparent data-[state=active]:text-[hsl(var(--vault-accent))]"
+          >
+            <BarChart3 className="h-4 w-4" />
+            Profitability
+          </TabsTrigger>
+        )}
+        {isAdmin && (
+          <TabsTrigger
             value="team"
             className="gap-2 rounded-none border-b-2 border-transparent px-6 py-3 text-[hsl(var(--vault-muted))] data-[state=active]:border-[hsl(var(--vault-accent))] data-[state=active]:bg-transparent data-[state=active]:text-[hsl(var(--vault-accent))]"
           >
@@ -45,6 +55,12 @@ export function VaultTabs() {
       {isAdmin && (
         <TabsContent value="financials" className="mt-0">
           <FinancialLedger />
+        </TabsContent>
+      )}
+
+      {isAdmin && (
+        <TabsContent value="profitability" className="mt-0">
+          <ProfitabilityAnalytics />
         </TabsContent>
       )}
 

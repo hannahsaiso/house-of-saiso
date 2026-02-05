@@ -8,3 +8,12 @@ verify_jwt = false
 
 [functions.parse-booking-emails]
 verify_jwt = false
+
+[functions.smart-booking-assistant]
+verify_jwt = false
+
+[functions.setup-staff-drive]
+verify_jwt = false
+
+[functions.create-project-drive]
+verify_jwt = false
