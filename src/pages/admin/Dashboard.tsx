@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
@@ -19,8 +19,10 @@ import { useProjects } from "@/hooks/useProjects";
 import { AdminRevenueChart } from "@/components/admin/AdminRevenueChart";
 import { MinimalistLedger } from "@/components/admin/MinimalistLedger";
 import { RescheduleRequests } from "@/components/admin/RescheduleRequests";
+import { ApprovalQueue } from "@/components/admin/ApprovalQueue";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -236,35 +238,35 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
 
-        {/* Project Health, Watchlist & Reschedule Requests */}
-        <div className="grid gap-6 lg:grid-cols-3">
+        {/* Project Health, Watchlist, Approval Queue & Reschedule Requests */}
+        <div className="grid gap-6 lg:grid-cols-4">
           {/* Active Projects */}
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 font-heading text-lg">
-                <FolderKanban className="h-5 w-5" />
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 font-heading text-base">
+                <FolderKanban className="h-4 w-4" />
                 Project Health
               </CardTitle>
             </CardHeader>
             <CardContent>
               {activeProjects.length === 0 ? (
-                <p className="py-8 text-center text-muted-foreground">
+                <p className="py-6 text-center text-sm text-muted-foreground">
                   No active projects
                 </p>
               ) : (
-                <div className="space-y-3">
-                  {activeProjects.slice(0, 5).map((project) => (
+                <div className="space-y-2">
+                  {activeProjects.slice(0, 4).map((project) => (
                     <div
                       key={project.id}
-                      className="flex items-center justify-between rounded-lg border p-3"
+                      className="flex items-center justify-between rounded-lg border border-border/50 p-2"
                     >
-                      <div>
-                        <p className="font-medium">{project.title}</p>
-                        <p className="text-xs text-muted-foreground">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-xs truncate">{project.title}</p>
+                        <p className="text-[10px] text-muted-foreground truncate">
                           {project.client?.name || "No client"}
                         </p>
                       </div>
-                      <Badge variant="outline" className="capitalize">
+                      <Badge variant="outline" className="capitalize text-[9px] h-5">
                         {project.status}
                       </Badge>
                     </div>
@@ -276,44 +278,45 @@ export default function AdminDashboard() {
 
           {/* Watchlist */}
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 font-heading text-lg">
-                <AlertCircle className="h-5 w-5 text-amber-500" />
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 font-heading text-base">
+                <AlertCircle className="h-4 w-4 text-amber-500" />
                 Invoice Watchlist
               </CardTitle>
             </CardHeader>
             <CardContent>
               {watchlistItems.length === 0 ? (
-                <p className="py-8 text-center text-muted-foreground">
+                <p className="py-6 text-center text-sm text-muted-foreground">
                   All invoices are paid
                 </p>
               ) : (
-                <div className="space-y-3">
-                  {watchlistItems.map((invoice) => (
+                <div className="space-y-2">
+                  {watchlistItems.slice(0, 4).map((invoice) => (
                     <div
                       key={invoice.id}
-                      className="flex items-center justify-between rounded-lg border p-3"
+                      className="flex items-center justify-between rounded-lg border border-border/50 p-2"
                     >
-                      <div>
-                        <p className="font-medium">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-xs truncate">
                           {invoice.client?.name || invoice.description || "Invoice"}
                         </p>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <Clock className="h-3 w-3" />
-                          {format(new Date(invoice.date), "MMM d, yyyy")}
+                        <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                          <Clock className="h-2.5 w-2.5" />
+                          {format(new Date(invoice.date), "MMM d")}
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="font-heading font-semibold">
+                        <p className="font-mono-ledger text-xs font-semibold tabular-nums">
                           {formatCurrency(Number(invoice.amount))}
                         </p>
                         <Badge
                           variant="outline"
-                          className={
+                          className={cn(
+                            "text-[9px] h-4",
                             invoice.payment_status === "overdue"
                               ? "border-destructive/50 text-destructive"
                               : "border-amber-500/50 text-amber-600"
-                          }
+                          )}
                         >
                           {invoice.payment_status}
                         </Badge>
@@ -324,6 +327,9 @@ export default function AdminDashboard() {
               )}
             </CardContent>
           </Card>
+
+          {/* Approval Queue */}
+          <ApprovalQueue />
 
           {/* Reschedule Requests */}
           <RescheduleRequests />

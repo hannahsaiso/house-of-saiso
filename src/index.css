@@ -24,6 +24,9 @@
     /* Champagne Accent */
     --primary: 43 65% 52%; /* Champagne #D4AF37 */
     --primary-foreground: 0 0% 10%;
+    
+    /* Named colors for semantic use */
+    --champagne: 43 65% 52%;
 
     --secondary: 40 20% 94%;
     --secondary-foreground: 0 0% 10%;

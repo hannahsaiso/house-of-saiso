@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { NotificationBell } from "./NotificationBell";
 
 interface DashboardHeaderProps {
   userName?: string;
@@ -32,17 +33,20 @@ export function DashboardHeader({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className="mb-10"
+      className="mb-10 flex items-start justify-between"
     >
-      <p className="mb-2 text-xs font-medium uppercase tracking-editorial text-muted-foreground">
-        {getRoleLabel()}
-      </p>
-      <h1 className="font-heading text-3xl font-semibold tracking-tight md:text-4xl">
-        {getGreeting()}{userName ? `, ${userName}` : ""}
-      </h1>
-      <p className="mt-2 text-muted-foreground">
-        Here's what's happening across your agency and studio.
-      </p>
+      <div>
+        <p className="mb-2 text-xs font-medium uppercase tracking-editorial text-muted-foreground">
+          {getRoleLabel()}
+        </p>
+        <h1 className="font-heading text-3xl font-semibold tracking-tight md:text-4xl">
+          {getGreeting()}{userName ? `, ${userName}` : ""}
+        </h1>
+        <p className="mt-2 text-muted-foreground">
+          Here's what's happening across your agency and studio.
+        </p>
+      </div>
+      <NotificationBell />
     </motion.div>
   );
 }
