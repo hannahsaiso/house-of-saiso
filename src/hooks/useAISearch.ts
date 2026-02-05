@@ -1,20 +1,30 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
+export interface SourceReference {
+  type: "project" | "task" | "client" | "booking";
+  id: string;
+  title: string;
+  url: string;
+}
+
 interface AISearchResult {
   answer: string | null;
   isQuestion: boolean;
+  sources: SourceReference[];
 }
 
 export function useAISearch() {
   const [isSearching, setIsSearching] = useState(false);
   const [aiAnswer, setAiAnswer] = useState<string | null>(null);
+  const [sources, setSources] = useState<SourceReference[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const performAISearch = async (query: string): Promise<AISearchResult> => {
     if (!query || query.trim().length < 3) {
       setAiAnswer(null);
-      return { answer: null, isQuestion: false };
+      setSources([]);
+      return { answer: null, isQuestion: false, sources: [] };
     }
 
     setIsSearching(true);
@@ -28,23 +38,25 @@ export function useAISearch() {
       if (fnError) {
         console.error("AI search error:", fnError);
         setError(fnError.message);
-        return { answer: null, isQuestion: false };
+        return { answer: null, isQuestion: false, sources: [] };
       }
 
       if (data?.error) {
         setError(data.error);
-        return { answer: null, isQuestion: false };
+        return { answer: null, isQuestion: false, sources: [] };
       }
 
       setAiAnswer(data?.answer || null);
+      setSources(data?.sources || []);
       return {
         answer: data?.answer || null,
         isQuestion: data?.isQuestion || false,
+        sources: data?.sources || [],
       };
     } catch (err) {
       console.error("AI search failed:", err);
       setError(err instanceof Error ? err.message : "Unknown error");
-      return { answer: null, isQuestion: false };
+      return { answer: null, isQuestion: false, sources: [] };
     } finally {
       setIsSearching(false);
     }
@@ -52,6 +64,7 @@ export function useAISearch() {
 
   const clearAIAnswer = () => {
     setAiAnswer(null);
+    setSources([]);
     setError(null);
   };
 
@@ -60,6 +73,7 @@ export function useAISearch() {
     clearAIAnswer,
     isSearching,
     aiAnswer,
+    sources,
     error,
   };
 }

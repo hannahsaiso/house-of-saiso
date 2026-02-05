@@ -1,6 +1,18 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Lightbulb, X, TrendingDown, Clock, Target, Sparkles } from "lucide-react";
+import { 
+  Lightbulb, 
+  X, 
+  TrendingDown, 
+  Clock, 
+  Target, 
+  Sparkles,
+  Mail,
+  CalendarCheck,
+  PhoneCall,
+  AlertTriangle
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +29,12 @@ interface Insight {
   createdAt: Date;
 }
 
+interface QuickAction {
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  action: () => void;
+}
+
 interface StrategicInsightsDrawerProps {
   insights?: Insight[];
   className?: string;
@@ -24,6 +42,7 @@ interface StrategicInsightsDrawerProps {
 
 export function StrategicInsightsDrawer({ insights = [], className }: StrategicInsightsDrawerProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const navigate = useNavigate();
 
   const getInsightIcon = (type: Insight["type"]) => {
     switch (type) {
@@ -43,11 +62,11 @@ export function StrategicInsightsDrawer({ insights = [], className }: StrategicI
   const getInsightColor = (type: Insight["type"]) => {
     switch (type) {
       case "momentum":
-        return "text-vault-warning bg-vault-warning/10 border-vault-warning/30";
+        return "text-amber-600 bg-amber-500/10 border-amber-500/30";
       case "opportunity":
         return "text-emerald-500 bg-emerald-500/10 border-emerald-500/30";
       case "warning":
-        return "text-amber-500 bg-amber-500/10 border-amber-500/30";
+        return "text-destructive bg-destructive/10 border-destructive/30";
       case "suggestion":
         return "text-primary bg-primary/10 border-primary/30";
       default:
@@ -55,7 +74,78 @@ export function StrategicInsightsDrawer({ insights = [], className }: StrategicI
     }
   };
 
+  const getQuickActions = (insight: Insight): QuickAction[] => {
+    switch (insight.type) {
+      case "momentum":
+        return [
+          {
+            label: "Draft Check-in Email",
+            icon: Mail,
+            action: () => {
+              // Navigate to inbox with pre-filled draft context
+              const subject = encodeURIComponent(`Project Check-in: ${insight.clientName || "Your Project"}`);
+              navigate(`/inbox?compose=true&subject=${subject}&projectId=${insight.projectId || ""}`);
+              setIsOpen(false);
+            },
+          },
+          {
+            label: "Schedule Call",
+            icon: PhoneCall,
+            action: () => {
+              navigate(`/studio?newBooking=true&type=internal&note=Check-in with ${insight.clientName || "client"}`);
+              setIsOpen(false);
+            },
+          },
+        ];
+      case "warning":
+        return [
+          {
+            label: "View Overdue Tasks",
+            icon: AlertTriangle,
+            action: () => {
+              navigate("/projects?filter=overdue");
+              setIsOpen(false);
+            },
+          },
+        ];
+      case "opportunity":
+        return [
+          {
+            label: "Send Re-Engagement Email",
+            icon: Mail,
+            action: () => {
+              const subject = encodeURIComponent("We'd Love to Work Together Again!");
+              navigate(`/inbox?compose=true&subject=${subject}`);
+              setIsOpen(false);
+            },
+          },
+          {
+            label: "Schedule Follow-up",
+            icon: CalendarCheck,
+            action: () => {
+              navigate("/studio?newBooking=true&type=internal&note=Client re-engagement follow-up");
+              setIsOpen(false);
+            },
+          },
+        ];
+      case "suggestion":
+        return [
+          {
+            label: "View Projects",
+            icon: Target,
+            action: () => {
+              navigate("/projects");
+              setIsOpen(false);
+            },
+          },
+        ];
+      default:
+        return [];
+    }
+  };
+
   const hasActiveInsights = insights.length > 0;
+  const hasHighPriority = insights.some(i => i.type === "warning");
 
   return (
     <>
@@ -73,10 +163,16 @@ export function StrategicInsightsDrawer({ insights = [], className }: StrategicI
       >
         <Lightbulb className={cn(
           "h-5 w-5 transition-colors",
-          hasActiveInsights ? "text-primary" : "text-muted-foreground"
+          hasActiveInsights ? "text-primary" : "text-muted-foreground",
+          hasHighPriority && "animate-pulse"
         )} />
         {hasActiveInsights && (
-          <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+          <span className={cn(
+            "absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold",
+            hasHighPriority 
+              ? "bg-destructive text-destructive-foreground animate-pulse" 
+              : "bg-primary text-primary-foreground"
+          )}>
             {insights.length}
           </span>
         )}
@@ -144,6 +240,7 @@ export function StrategicInsightsDrawer({ insights = [], className }: StrategicI
                     insights.map((insight, index) => {
                       const Icon = getInsightIcon(insight.type);
                       const colorClasses = getInsightColor(insight.type);
+                      const quickActions = getQuickActions(insight);
                       
                       return (
                         <motion.div
@@ -174,6 +271,24 @@ export function StrategicInsightsDrawer({ insights = [], className }: StrategicI
                               <p className="text-xs opacity-80 leading-relaxed">
                                 {insight.description}
                               </p>
+                              
+                              {/* Quick Actions */}
+                              {quickActions.length > 0 && (
+                                <div className="mt-3 flex flex-wrap gap-2">
+                                  {quickActions.map((action, actionIndex) => (
+                                    <Button
+                                      key={actionIndex}
+                                      variant="secondary"
+                                      size="sm"
+                                      onClick={action.action}
+                                      className="h-7 gap-1.5 text-xs bg-background/80 hover:bg-background"
+                                    >
+                                      <action.icon className="h-3 w-3" />
+                                      {action.label}
+                                    </Button>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           </div>
                         </motion.div>

@@ -7,7 +7,9 @@ import {
   Receipt,
   Search,
   Loader2,
-  Sparkles
+  Sparkles,
+  ExternalLink,
+  CalendarDays
 } from "lucide-react";
 import {
   CommandDialog,
@@ -17,8 +19,9 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import { Badge } from "@/components/ui/badge";
 import { useProjects } from "@/hooks/useProjects";
-import { useAISearch } from "@/hooks/useAISearch";
+import { useAISearch, SourceReference } from "@/hooks/useAISearch";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserRole } from "@/hooks/useUserRole";
 import { cn } from "@/lib/utils";
@@ -39,7 +42,7 @@ export function CommandBar() {
   const navigate = useNavigate();
   const { projects } = useProjects();
   const { isAdmin, isAdminOrStaff } = useUserRole();
-  const { performAISearch, aiAnswer, isSearching: isAISearching, clearAIAnswer } = useAISearch();
+  const { performAISearch, aiAnswer, sources, isSearching: isAISearching, clearAIAnswer } = useAISearch();
 
   // CMD+K handler
   useEffect(() => {
@@ -176,6 +179,12 @@ export function CommandBar() {
     navigate(result.url);
   };
 
+  const handleSourceClick = (source: SourceReference) => {
+    setOpen(false);
+    setQuery("");
+    navigate(source.url);
+  };
+
   const getIcon = (type: SearchResult["type"]) => {
     switch (type) {
       case "project":
@@ -186,6 +195,19 @@ export function CommandBar() {
         return Users;
       case "ledger":
         return Receipt;
+    }
+  };
+
+  const getSourceIcon = (type: SourceReference["type"]) => {
+    switch (type) {
+      case "project":
+        return FolderKanban;
+      case "task":
+        return CheckSquare;
+      case "client":
+        return Users;
+      case "booking":
+        return CalendarDays;
     }
   };
 
@@ -218,7 +240,7 @@ export function CommandBar() {
         value={query}
         onValueChange={setQuery}
       />
-      <CommandList className="max-h-[400px]">
+      <CommandList className="max-h-[450px]">
         {/* AI Answer Section */}
         {(isAISearching || aiAnswer) && (
           <div className="border-b border-border/50 px-4 py-4 bg-primary/5">
@@ -239,9 +261,33 @@ export function CommandBar() {
                     Thinking...
                   </p>
                 ) : (
-                  <p className="text-sm text-foreground leading-relaxed">
-                    {aiAnswer}
-                  </p>
+                  <>
+                    <p className="text-sm text-foreground leading-relaxed">
+                      {aiAnswer}
+                    </p>
+                    {/* Source Links */}
+                    {sources.length > 0 && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+                          Sources:
+                        </span>
+                        {sources.map((source) => {
+                          const Icon = getSourceIcon(source.type);
+                          return (
+                            <button
+                              key={`${source.type}-${source.id}`}
+                              onClick={() => handleSourceClick(source)}
+                              className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-background border border-border/50 text-xs text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
+                            >
+                              <Icon className="h-3 w-3" />
+                              <span className="max-w-[120px] truncate">{source.title}</span>
+                              <ExternalLink className="h-2.5 w-2.5 opacity-50" />
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </div>
