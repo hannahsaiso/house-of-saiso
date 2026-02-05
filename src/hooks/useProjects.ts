@@ -20,6 +20,13 @@ export interface Project {
   } | null;
 }
 
+export interface CreateProjectData {
+  title: string;
+  description?: string;
+  client_id?: string;
+  due_date?: string;
+}
+
 export function useProjects(includeArchived = false) {
   const queryClient = useQueryClient();
 
@@ -41,6 +48,50 @@ export function useProjects(includeArchived = false) {
       const { data, error } = await query;
       if (error) throw error;
       return data as Project[];
+    },
+  });
+
+  const createProject = useMutation({
+    mutationFn: async (data: CreateProjectData) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const { data: project, error } = await supabase
+        .from("projects")
+        .insert({
+          ...data,
+          created_by: user.id,
+        })
+        .select(`*, client:clients(name, company)`)
+        .single();
+
+      if (error) throw error;
+
+      // Automatically create Google Drive folder for the project
+      if (project.client) {
+        try {
+          await supabase.functions.invoke("create-project-drive", {
+            body: {
+              project_id: project.id,
+              client_name: project.client.name,
+              user_id: user.id,
+            },
+          });
+          console.log("Project Drive folder created automatically");
+        } catch (driveError) {
+          // Don't fail project creation if Drive folder fails
+          console.error("Optional Drive folder creation failed:", driveError);
+        }
+      }
+
+      return project as Project;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
+      toast.success("Project created successfully");
+    },
+    onError: (error) => {
+      toast.error("Failed to create project: " + error.message);
     },
   });
 
@@ -97,6 +148,7 @@ export function useProjects(includeArchived = false) {
     activeProjects: projects?.filter((p) => !p.archived_at) || [],
     archivedProjects: projects?.filter((p) => p.archived_at) || [],
     isLoading,
+    createProject,
     archiveProject,
     restoreProject,
   };

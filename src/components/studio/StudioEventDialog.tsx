@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
-import { Loader2, FileSignature, AlertCircle } from "lucide-react";
+import { Loader2, FileSignature, AlertCircle, Package } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -21,9 +21,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useStudioBookings, StudioBooking, CreateBookingData } from "@/hooks/useStudioBookings";
 import { checkBookingConflicts } from "@/hooks/useBookingConflicts";
 import { useSignatureRequests } from "@/hooks/useSignatureRequests";
+import { useSmartBooking } from "@/hooks/useSmartBooking";
+import { useInventory } from "@/hooks/useInventory";
+import { SmartBookingSuggestion } from "./SmartBookingSuggestion";
 import { toast } from "sonner";
 
 interface StudioEventDialogProps {
@@ -54,9 +58,12 @@ export function StudioEventDialog({
 }: StudioEventDialogProps) {
   const { createBooking, updateBooking, deleteBooking } = useStudioBookings();
   const { createSignatureRequest } = useSignatureRequests();
+  const { items: inventoryItems } = useInventory();
+  const { checkAvailability, isChecking: isAIChecking, result: aiResult, clearResult } = useSmartBooking();
   const [isChecking, setIsChecking] = useState(false);
   const [clientEmail, setClientEmail] = useState("");
   const [clientName, setClientName] = useState("");
+  const [selectedResources, setSelectedResources] = useState<string[]>([]);
 
   const [formData, setFormData] = useState<CreateBookingData>({
     event_name: "",
@@ -94,7 +101,28 @@ export function StudioEventDialog({
         is_blocked: false,
       });
     }
+    setSelectedResources([]);
+    clearResult();
   }, [booking, defaultDate, open]);
+
+  // Smart check when date/time changes
+  const handleSmartCheck = async () => {
+    if (formData.date && formData.start_time && formData.end_time) {
+      await checkAvailability({
+        date: formData.date,
+        start_time: formData.start_time,
+        end_time: formData.end_time,
+        booking_type: formData.booking_type,
+        required_resources: selectedResources,
+      });
+    }
+  };
+
+  const toggleResource = (id: string) => {
+    setSelectedResources((prev) =>
+      prev.includes(id) ? prev.filter((r) => r !== id) : [...prev, id]
+    );
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -155,11 +183,11 @@ export function StudioEventDialog({
     }
   };
 
-  const isSubmitting = createBooking.isPending || updateBooking.isPending || isChecking;
+  const isSubmitting = createBooking.isPending || updateBooking.isPending || isChecking || isAIChecking;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-heading">
             {booking ? "Edit Event" : "New Event"}
@@ -219,6 +247,55 @@ export function StudioEventDialog({
                   />
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* AI Smart Suggestion */}
+          <SmartBookingSuggestion
+            isLoading={isAIChecking}
+            suggestion={aiResult?.suggestion || null}
+            alternatives={aiResult?.availableAlternatives}
+            onAcceptAlternative={(id) => {
+              setSelectedResources((prev) => [...prev.filter((r) => r !== id), id]);
+            }}
+            onDismiss={clearResult}
+          />
+
+          {/* Resource Selection */}
+          {inventoryItems.length > 0 && (
+            <div className="space-y-3 rounded-lg border border-border/50 bg-muted/20 p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <Package className="h-4 w-4 text-primary" />
+                  Reserve Equipment
+                </div>
+                <button
+                  type="button"
+                  onClick={handleSmartCheck}
+                  className="text-xs text-primary hover:underline"
+                >
+                  Check Availability
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto">
+                {inventoryItems.slice(0, 8).map((item) => (
+                  <label
+                    key={item.id}
+                    className="flex items-center gap-2 rounded-md border border-border/30 p-2 cursor-pointer hover:bg-muted/30 transition-colors"
+                  >
+                    <Checkbox
+                      checked={selectedResources.includes(item.id)}
+                      onCheckedChange={() => toggleResource(item.id)}
+                    />
+                    <span className="text-xs truncate">{item.item_name}</span>
+                  </label>
+                ))}
+              </div>
+              {aiResult?.unavailableResources && aiResult.unavailableResources.length > 0 && (
+                <p className="text-xs text-destructive">
+                  Unavailable: {aiResult.unavailableResources.join(", ")}
+                </p>
+              )}
             </div>
           )}
 

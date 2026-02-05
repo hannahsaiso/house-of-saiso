@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { format } from "date-fns";
-import { Plus, Loader2, MoreHorizontal } from "lucide-react";
+import { Plus, Loader2, MoreHorizontal, TrendingUp, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -22,6 +22,8 @@ import { FinancialEntryDialog } from "./FinancialEntryDialog";
 import { RevenueChart } from "./RevenueChart";
 import { cn } from "@/lib/utils";
 
+type MarginFilter = "all" | "high-margin" | "maintenance";
+
 const statusStyles: Record<string, string> = {
   paid: "bg-[hsl(var(--vault-success))]/20 text-[hsl(var(--vault-success))] border-[hsl(var(--vault-success))]/30",
   sent: "bg-[hsl(var(--vault-warning))]/20 text-[hsl(var(--vault-warning))] border-[hsl(var(--vault-warning))]/30",
@@ -32,6 +34,7 @@ export function FinancialLedger() {
   const { entries, isLoading, monthlyTotals, deleteEntry, updateEntry } = useFinancialEntries();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<FinancialEntry | null>(null);
+  const [marginFilter, setMarginFilter] = useState<MarginFilter>("all");
 
   const handleEdit = (entry: FinancialEntry) => {
     setEditingEntry(entry);
@@ -55,12 +58,23 @@ export function FinancialLedger() {
     }).format(amount);
   };
 
+  // Filter entries by margin type
+  const filteredEntries = useMemo(() => {
+    if (marginFilter === "all") return entries;
+    if (marginFilter === "high-margin") {
+      // Studio rentals have higher margins
+      return entries.filter((e) => e.service_type === "studio");
+    }
+    // Maintenance = agency (lower margin, more labor)
+    return entries.filter((e) => e.service_type === "agency");
+  }, [entries, marginFilter]);
+
   // Calculate totals
-  const totalRevenue = entries.reduce((sum, e) => sum + Number(e.amount), 0);
-  const paidAmount = entries
+  const totalRevenue = filteredEntries.reduce((sum, e) => sum + Number(e.amount), 0);
+  const paidAmount = filteredEntries
     .filter((e) => e.payment_status === "paid")
     .reduce((sum, e) => sum + Number(e.amount), 0);
-  const outstandingAmount = entries
+  const outstandingAmount = filteredEntries
     .filter((e) => e.payment_status !== "paid")
     .reduce((sum, e) => sum + Number(e.amount), 0);
 
@@ -99,8 +113,48 @@ export function FinancialLedger() {
 
       {/* Ledger Table */}
       <div className="rounded-lg border border-[hsl(var(--vault-border))] bg-[hsl(var(--vault-card))]">
-        <div className="flex items-center justify-between border-b border-[hsl(var(--vault-border))] p-4">
-          <h3 className="font-heading text-lg font-medium">Financial Ledger</h3>
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[hsl(var(--vault-border))] p-4">
+          <div className="flex items-center gap-4">
+            <h3 className="font-heading text-lg font-medium">Financial Ledger</h3>
+            {/* Quick Filters */}
+            <div className="flex items-center gap-1 rounded-lg border border-[hsl(var(--vault-border))] p-1">
+              <button
+                onClick={() => setMarginFilter("all")}
+                className={cn(
+                  "rounded px-3 py-1 text-xs font-medium transition-colors",
+                  marginFilter === "all"
+                    ? "bg-[hsl(var(--vault-accent))] text-[hsl(var(--vault-background))]"
+                    : "text-[hsl(var(--vault-muted))] hover:text-[hsl(var(--vault-foreground))]"
+                )}
+              >
+                All
+              </button>
+              <button
+                onClick={() => setMarginFilter("high-margin")}
+                className={cn(
+                  "flex items-center gap-1 rounded px-3 py-1 text-xs font-medium transition-colors",
+                  marginFilter === "high-margin"
+                    ? "bg-[hsl(var(--vault-success))] text-[hsl(var(--vault-background))]"
+                    : "text-[hsl(var(--vault-muted))] hover:text-[hsl(var(--vault-foreground))]"
+                )}
+              >
+                <TrendingUp className="h-3 w-3" />
+                High-Margin
+              </button>
+              <button
+                onClick={() => setMarginFilter("maintenance")}
+                className={cn(
+                  "flex items-center gap-1 rounded px-3 py-1 text-xs font-medium transition-colors",
+                  marginFilter === "maintenance"
+                    ? "bg-[hsl(var(--vault-warning))] text-[hsl(var(--vault-background))]"
+                    : "text-[hsl(var(--vault-muted))] hover:text-[hsl(var(--vault-foreground))]"
+                )}
+              >
+                <Wrench className="h-3 w-3" />
+                Maintenance
+              </button>
+            </div>
+          </div>
           <Button
             size="sm"
             onClick={() => {
@@ -118,9 +172,9 @@ export function FinancialLedger() {
           <div className="flex items-center justify-center p-12">
             <Loader2 className="h-8 w-8 animate-spin text-[hsl(var(--vault-accent))]" />
           </div>
-        ) : entries.length === 0 ? (
+        ) : filteredEntries.length === 0 ? (
           <div className="p-12 text-center text-[hsl(var(--vault-muted))]">
-            No financial entries yet. Click "New Entry" to add one.
+            {entries.length === 0 ? "No financial entries yet. Click \"New Entry\" to add one." : "No entries match the selected filter."}
           </div>
         ) : (
           <Table>
@@ -136,7 +190,7 @@ export function FinancialLedger() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {entries.map((entry) => (
+              {filteredEntries.map((entry) => (
                 <TableRow
                   key={entry.id}
                   className="border-[hsl(var(--vault-border))] hover:bg-[hsl(var(--vault-background))]/50"
