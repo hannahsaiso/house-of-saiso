@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
-import { Loader2, FileSignature, AlertCircle, Package } from "lucide-react";
+import { Loader2, FileSignature, AlertCircle, Package, Wrench } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -28,6 +28,7 @@ import { useSignatureRequests } from "@/hooks/useSignatureRequests";
 import { useSmartBooking } from "@/hooks/useSmartBooking";
 import { useInventory } from "@/hooks/useInventory";
 import { SmartBookingSuggestion } from "./SmartBookingSuggestion";
+import { StudioOperationsPanel } from "./StudioOperationsPanel";
 import { toast } from "sonner";
 
 interface StudioEventDialogProps {
@@ -413,6 +414,15 @@ export function StudioEventDialog({
             </Button>
           </DialogFooter>
         </form>
+
+        {/* Operations Panel for Confirmed Bookings */}
+        {booking && booking.status === "confirmed" && (
+          <StudioOperationsPanel
+            bookingId={booking.id}
+            bookingStatus={booking.status || "pending"}
+            clientId={booking.client_id}
+          />
+        )}
       </DialogContent>
     </Dialog>
   );

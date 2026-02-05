@@ -1,40 +1,32 @@
  import { useMemo } from "react";
  import { motion } from "framer-motion";
- import { TrendingUp, BarChart3, Clock, DollarSign } from "lucide-react";
+import { TrendingUp, BarChart3, Clock, DollarSign, Building2, Megaphone } from "lucide-react";
  import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
  import { Progress } from "@/components/ui/progress";
  import { useFinancialEntries } from "@/hooks/useFinancialEntries";
  import { useProjectTimeSummary } from "@/hooks/useTimeLogs";
  import { cn } from "@/lib/utils";
  
- // Default hourly rate for staff (can be made configurable)
- const STAFF_HOURLY_RATE = 45; // $45/hour
+// Cost configuration
+const STAFF_HOURLY_RATE = 45; // $45/hour for creative labor
+const STUDIO_FIXED_COST = 50; // $50 fixed cost per booking (utilities, wear)
+const STUDIO_OPERATIONAL_HOURS = 1; // 1 hour operational time (reset/cleaning)
  
- // Fallback cost ratios when no hours logged
- const FALLBACK_COST_RATIOS: Record<string, number> = {
-   studio: 0.2, // 20% cost = 80% margin
-   agency: 0.6, // 60% cost = 40% margin
- };
+// Studio is PASSIVE revenue - only fixed cost + operational time for reset
+// Agency is SERVICE revenue - requires creative labor hours
  
  export function ProfitabilityAnalytics() {
    const { entries } = useFinancialEntries();
    const { projectHours } = useProjectTimeSummary();
  
- const analytics = useMemo(() => {
-     // Calculate total hours logged per service type
-     let studioHours = 0;
+  const analytics = useMemo(() => {
+    // Agency: Service Revenue - requires creative labor
      let agencyHours = 0;
      
-     // Match financial entries to projects and their hours
      const studioEntries = entries.filter((e) => e.service_type === "studio");
      const agencyEntries = entries.filter((e) => e.service_type === "agency");
      
-     studioEntries.forEach((e) => {
-       if (e.project_id && projectHours[e.project_id]) {
-         studioHours += projectHours[e.project_id].totalHours;
-       }
-     });
-     
+    // Only count hours for agency projects (creative labor)
      agencyEntries.forEach((e) => {
        if (e.project_id && projectHours[e.project_id]) {
          agencyHours += projectHours[e.project_id].totalHours;
@@ -43,20 +35,27 @@
      
      const studioRevenue = studioEntries.reduce((sum, e) => sum + Number(e.amount), 0);
      const agencyRevenue = agencyEntries.reduce((sum, e) => sum + Number(e.amount), 0);
+    const studioBookingCount = studioEntries.length;
  
-     // Calculate costs based on hours logged (dynamic) or fallback to static ratios
-     const studioLaborCost = studioHours > 0 ? studioHours * STAFF_HOURLY_RATE : studioRevenue * FALLBACK_COST_RATIOS.studio;
-     const agencyLaborCost = agencyHours > 0 ? agencyHours * STAFF_HOURLY_RATE : agencyRevenue * FALLBACK_COST_RATIOS.agency;
+    // STUDIO: Passive Revenue - Fixed costs only + operational time for reset
+    // No creative labor - clients handle their own post-production
+    const studioFixedCosts = studioBookingCount * STUDIO_FIXED_COST;
+    const studioOperationalCost = studioBookingCount * STUDIO_OPERATIONAL_HOURS * STAFF_HOURLY_RATE;
+    const studioTotalCost = studioFixedCosts + studioOperationalCost;
+
+    // AGENCY: Service Revenue - Requires creative labor hours
+    const agencyLaborCost = agencyHours > 0 
+      ? agencyHours * STAFF_HOURLY_RATE 
+      : agencyRevenue * 0.6; // Fallback 60% cost ratio
  
-     const studioMargin = studioRevenue - studioLaborCost;
+    const studioMargin = studioRevenue - studioTotalCost;
      const agencyMargin = agencyRevenue - agencyLaborCost;
  
      const studioMarginPct = studioRevenue > 0 ? (studioMargin / studioRevenue) * 100 : 0;
      const agencyMarginPct = agencyRevenue > 0 ? (agencyMargin / agencyRevenue) * 100 : 0;
  
      const totalRevenue = studioRevenue + agencyRevenue;
-     const totalProfit = studioMargin + agencyMargin;
-     const totalHours = studioHours + agencyHours;
+    const totalProfit = studioMargin + agencyMargin;
      const overallMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
  
      return {
@@ -64,10 +63,11 @@
          revenue: studioRevenue,
          margin: studioMargin,
          marginPct: studioMarginPct,
-         count: studioEntries.length,
-         hours: studioHours,
-         laborCost: studioLaborCost,
-         isCalculated: studioHours > 0,
+        count: studioBookingCount,
+        fixedCost: studioFixedCosts,
+        operationalCost: studioOperationalCost,
+        totalCost: studioTotalCost,
+        revenueType: "Passive / Product",
        },
        agency: {
          revenue: agencyRevenue,
@@ -76,13 +76,14 @@
          count: agencyEntries.length,
          hours: agencyHours,
          laborCost: agencyLaborCost,
-         isCalculated: agencyHours > 0,
+        revenueType: "Service / Labor",
+        isHoursLogged: agencyHours > 0,
        },
        total: {
          revenue: totalRevenue,
          profit: totalProfit,
          margin: overallMargin,
-         hours: totalHours,
+        hours: agencyHours, // Only creative hours matter
        },
      };
    }, [entries, projectHours]);
@@ -100,7 +101,7 @@
        {/* Header */}
        <div className="flex items-center justify-between">
          <div className="flex items-center gap-2">
-           <BarChart3 className="h-5 w-5 text-[hsl(var(--vault-accent))]" />
+          <BarChart3 className="h-5 w-5 text-[hsl(var(--vault-accent))]" />
            <h3 className="font-heading text-lg font-semibold text-[hsl(var(--vault-foreground))]">
              Service Profitability
            </h3>
@@ -108,7 +109,7 @@
          <div className="flex items-center gap-2 text-xs text-[hsl(var(--vault-muted))]">
            <Clock className="h-3.5 w-3.5" />
            <span className="font-mono-ledger tabular-nums">
-             {analytics.total.hours.toFixed(1)}h logged
+            {analytics.total.hours.toFixed(1)}h creative labor
            </span>
            <span className="text-[hsl(var(--vault-muted))]/50">•</span>
            <span className="font-mono-ledger tabular-nums">
@@ -128,9 +129,12 @@
            <Card className="border-[hsl(var(--vault-border))] bg-[hsl(var(--vault-card))]">
              <CardHeader className="pb-2">
                <CardTitle className="flex items-center justify-between">
-                 <span className="font-heading text-base text-[hsl(var(--vault-foreground))]">
-                   Studio Rental
-                 </span>
+                <div className="flex items-center gap-2">
+                  <Building2 className="h-4 w-4 text-[hsl(var(--vault-accent))]" />
+                  <span className="font-heading text-base text-[hsl(var(--vault-foreground))]">
+                    Studio Rental
+                  </span>
+                </div>
                  <span className={cn(
                    "font-mono-ledger text-lg font-bold tabular-nums",
                    analytics.studio.marginPct >= 60 ? "text-[hsl(var(--vault-success))]" : 
@@ -140,6 +144,9 @@
                    {analytics.studio.marginPct.toFixed(0)}%
                  </span>
                </CardTitle>
+              <p className="text-[10px] font-heading uppercase tracking-editorial text-[hsl(var(--vault-muted))]">
+                {analytics.studio.revenueType}
+              </p>
              </CardHeader>
              <CardContent className="space-y-4">
                <Progress
@@ -157,10 +164,10 @@
                  </div>
                  <div>
                    <p className="text-[10px] font-heading uppercase tracking-editorial text-[hsl(var(--vault-muted))]">
-                     Labor Cost
+                      Fixed + Ops Cost
                    </p>
                    <p className="font-mono-ledger text-sm font-semibold tabular-nums text-[hsl(var(--vault-warning))]">
-                     {formatCurrency(analytics.studio.laborCost)}
+                      {formatCurrency(analytics.studio.totalCost)}
                    </p>
                  </div>
                  <div>
@@ -176,12 +183,10 @@
                  </div>
                </div>
                <div className="flex items-center justify-between text-xs text-[hsl(var(--vault-muted))]">
-                 <span>{analytics.studio.count} transactions</span>
-                 <span className="font-mono-ledger tabular-nums">
-                   {analytics.studio.isCalculated 
-                     ? `${analytics.studio.hours.toFixed(1)}h logged` 
-                     : "Using estimated costs"}
-                 </span>
+                  <span>{analytics.studio.count} bookings</span>
+                  <span className="font-mono-ledger tabular-nums text-[10px]">
+                    ${STUDIO_FIXED_COST} fixed + {STUDIO_OPERATIONAL_HOURS}h ops/booking
+                  </span>
                </div>
              </CardContent>
            </Card>
@@ -196,9 +201,12 @@
            <Card className="border-[hsl(var(--vault-border))] bg-[hsl(var(--vault-card))]">
              <CardHeader className="pb-2">
                <CardTitle className="flex items-center justify-between">
-                 <span className="font-heading text-base text-[hsl(var(--vault-foreground))]">
-                   Agency Marketing
-                 </span>
+                <div className="flex items-center gap-2">
+                  <Megaphone className="h-4 w-4 text-[hsl(var(--vault-accent))]" />
+                  <span className="font-heading text-base text-[hsl(var(--vault-foreground))]">
+                    Agency Marketing
+                  </span>
+                </div>
                  <span className={cn(
                    "font-mono-ledger text-lg font-bold tabular-nums",
                    analytics.agency.marginPct >= 60 ? "text-[hsl(var(--vault-success))]" : 
@@ -208,6 +216,9 @@
                    {analytics.agency.marginPct.toFixed(0)}%
                  </span>
                </CardTitle>
+              <p className="text-[10px] font-heading uppercase tracking-editorial text-[hsl(var(--vault-muted))]">
+                {analytics.agency.revenueType}
+              </p>
              </CardHeader>
              <CardContent className="space-y-4">
                <Progress
@@ -244,11 +255,11 @@
                  </div>
                </div>
                <div className="flex items-center justify-between text-xs text-[hsl(var(--vault-muted))]">
-                 <span>{analytics.agency.count} transactions</span>
+                  <span>{analytics.agency.count} projects</span>
                  <span className="font-mono-ledger tabular-nums">
-                   {analytics.agency.isCalculated 
+                    {analytics.agency.isHoursLogged 
                      ? `${analytics.agency.hours.toFixed(1)}h logged` 
-                     : "Using estimated costs"}
+                      : "Using 60% cost estimate"}
                  </span>
                </div>
              </CardContent>
