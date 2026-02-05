@@ -112,11 +112,9 @@ export function useStudioBookings(month?: Date) {
       if (data.status === "confirmed" && previousBooking?.status !== "confirmed") {
         const staffId = await getStaffUserId();
         
-        // Create studio operations tasks
+       // Create single "Studio Prep" task (venue rental only, no creative project creation)
         const tasksToCreate = [
-          { booking_id: id, task_type: "entry_instructions", task_name: "Send Entry Instructions to Client", assigned_to: staffId, status: "pending" },
-          { booking_id: id, task_type: "equipment_check", task_name: "Pre-shoot Equipment Check", assigned_to: staffId, status: "pending" },
-          { booking_id: id, task_type: "space_reset", task_name: "Post-shoot Space Reset & Cleaning", assigned_to: staffId, status: "pending" },
+         { booking_id: id, task_type: "space_prep", task_name: "Studio Prep: Clean space & check gear", assigned_to: staffId, status: "pending" },
         ];
         
         await supabase

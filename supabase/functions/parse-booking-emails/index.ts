@@ -276,8 +276,8 @@ serve(async (req) => {
             await supabase.from("notifications").insert({
               user_id: admin.user_id,
               type: "booking_request",
-              title: "New Booking Request",
-              message: `${parsed.client_name || "Unknown"} requested a studio booking for ${parsed.date}`,
+             title: "New Venue Rental Inquiry",
+             message: `Confirm Space & Gear Availability? ${parsed.client_name || "Unknown"} requested ${parsed.date}`,
               data: { booking_id: booking.id },
             });
           }

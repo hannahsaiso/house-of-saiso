@@ -180,11 +180,31 @@ export function useInventoryReservations(bookingId?: string, dateRange?: { from:
     return data.map((r) => r.inventory_id);
   };
 
+   // Check if items are blocked for a date range and return booking info
+   const checkConflicts = async (inventoryIds: string[], dateRange: { from: string; to: string }) => {
+     const { data, error } = await supabase
+       .from("inventory_reservations")
+       .select(`
+         inventory_id,
+         booking_id,
+         reserved_from,
+         reserved_until,
+         inventory:inventory(item_name)
+       `)
+       .in("inventory_id", inventoryIds)
+       .lte("reserved_from", dateRange.to)
+       .gte("reserved_until", dateRange.from);
+ 
+     if (error) throw error;
+     return data || [];
+   };
+ 
   return {
     reservations: reservations || [],
     isLoading,
     createReservation,
     deleteReservation,
     checkAvailability,
+     checkConflicts,
   };
-}
+ }
