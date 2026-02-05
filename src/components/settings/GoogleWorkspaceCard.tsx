@@ -1,44 +1,64 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useGoogleOAuth } from "@/hooks/useGoogleOAuth";
-import { Loader2, Link2, Unlink, Mail, Calendar, AlertCircle } from "lucide-react";
+import { Loader2, Link2, Unlink, Mail, Calendar, AlertCircle, HardDrive } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-// Google OAuth configuration
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+// Google OAuth scopes - includes Drive for file management
 const GOOGLE_SCOPES = [
   "https://www.googleapis.com/auth/gmail.readonly",
   "https://www.googleapis.com/auth/calendar.readonly",
+  "https://www.googleapis.com/auth/drive",
   "https://www.googleapis.com/auth/userinfo.email",
   "https://www.googleapis.com/auth/userinfo.profile",
 ].join(" ");
 
+// Fixed redirect URI - must match Google Cloud Console configuration
+const REDIRECT_URI = "https://zvoelshrluaotjrmxzho.lovable.app/auth/callback";
+
 export function GoogleWorkspaceCard() {
   const { connection, isLoading, isConnected, isTokenExpired, disconnect, isDisconnecting, saveToken, isSaving } = useGoogleOAuth();
   const [isConnecting, setIsConnecting] = useState(false);
+  const [googleClientId, setGoogleClientId] = useState<string | null>(null);
+  const [isConfigLoading, setIsConfigLoading] = useState(true);
+
+  // Fetch Google Client ID from edge function on mount
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke("google-oauth-config");
+        if (error) throw error;
+        if (data?.configured && data?.client_id) {
+          setGoogleClientId(data.client_id);
+        }
+      } catch (err) {
+        console.error("Failed to fetch OAuth config:", err);
+      } finally {
+        setIsConfigLoading(false);
+      }
+    };
+    fetchConfig();
+  }, []);
 
   const handleConnect = async () => {
-    if (!GOOGLE_CLIENT_ID) {
-      toast.error("Google OAuth is not configured. Please add VITE_GOOGLE_CLIENT_ID.");
+    if (!googleClientId) {
+      toast.error("Google OAuth is not configured. Please add GOOGLE_CLIENT_ID secret.");
       return;
     }
 
     setIsConnecting(true);
 
     try {
-      // Build OAuth URL
-      const redirectUri = `${window.location.origin}/settings/integrations/callback`;
+      // Generate state for CSRF protection
       const state = crypto.randomUUID();
-      
-      // Store state for CSRF protection
       sessionStorage.setItem("google_oauth_state", state);
 
       const authUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
-      authUrl.searchParams.set("client_id", GOOGLE_CLIENT_ID);
-      authUrl.searchParams.set("redirect_uri", redirectUri);
+      authUrl.searchParams.set("client_id", googleClientId);
+      authUrl.searchParams.set("redirect_uri", REDIRECT_URI);
       authUrl.searchParams.set("response_type", "code");
       authUrl.searchParams.set("scope", GOOGLE_SCOPES);
       authUrl.searchParams.set("state", state);
