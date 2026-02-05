@@ -7,6 +7,7 @@ import { OnboardingQueue } from "@/components/dashboard/OnboardingQueue";
 import { PendingSignaturesWidget } from "@/components/dashboard/PendingSignaturesWidget";
 import { StrategicInsightsDrawer } from "@/components/insights/StrategicInsightsDrawer";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useAuth } from "@/hooks/useAuth";
 import { useStrategicInsights } from "@/hooks/useStrategicInsights";
 import { motion } from "framer-motion";
 
@@ -64,12 +65,15 @@ const mockBookings = [
 
 const Index = () => {
   const { role, isAdminOrStaff, isLoading: roleLoading } = useUserRole();
+  const { user } = useAuth();
   const { insights } = useStrategicInsights();
+  
+  const userName = user?.user_metadata?.full_name || user?.email?.split("@")[0];
 
   return (
     <DashboardLayout>
       <div className="mx-auto max-w-7xl">
-        <DashboardHeader userRole={role || "admin"} />
+        <DashboardHeader userName={userName} userRole={role || "admin"} />
 
         {/* Quick Actions */}
         <div className="mb-10">
