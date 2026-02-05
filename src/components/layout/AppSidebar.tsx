@@ -47,7 +47,7 @@ const navItems: NavItem[] = [
   // ADMIN Group
   { title: "Mail", url: "/inbox", icon: Mail, adminOrStaffOnly: true, group: "admin", showConnectionStatus: true },
   { title: "Vault", url: "/vault", icon: Lock, adminOnly: true, group: "admin" },
-  { title: "Settings", url: "/settings/integrations", icon: Settings, group: "admin" },
+  { title: "Settings", url: "/settings/team", icon: Settings, group: "admin" },
 ];
 
 interface NavGroupProps {

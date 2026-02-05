@@ -32,7 +32,7 @@ export function useTeamInvites() {
   const sendInvite = useMutation({
     mutationFn: async ({ email, role }: { email: string; role: "admin" | "staff" | "client" }) => {
       const { data: user } = await supabase.auth.getUser();
-      const { data, error } = await supabase
+      const { data: invite, error } = await supabase
         .from("team_invites")
         .insert({
           email,
@@ -42,10 +42,28 @@ export function useTeamInvites() {
         .select()
         .single();
       if (error) throw error;
-      return data;
+
+      // Also create/update a pending team member record for tracking.
+      // (Profiles cannot be created until the user actually signs up and has a user_id.)
+      const { error: memberError } = await supabase
+        .from("team_members")
+        .upsert(
+          {
+            email,
+            status: "pending",
+            invited_role: role,
+            invite_id: invite.id,
+          },
+          { onConflict: "email" }
+        );
+
+      if (memberError) throw memberError;
+
+      return invite;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["team-invites"] });
+      queryClient.invalidateQueries({ queryKey: ["team-members"] });
       toast.success(`Invitation sent to ${data.email}`);
     },
     onError: (error) => {
@@ -63,6 +81,7 @@ export function useTeamInvites() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["team-invites"] });
+      queryClient.invalidateQueries({ queryKey: ["team-members"] });
       toast.success("Invitation revoked");
     },
     onError: (error) => {
