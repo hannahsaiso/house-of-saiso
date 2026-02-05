@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Plus, Package, Loader2, MoreHorizontal } from "lucide-react";
+import { Plus, Package, Loader2, MoreHorizontal, Wrench, History, Sparkles } from "lucide-react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,21 +27,29 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useInventory, InventoryItem } from "@/hooks/useInventory";
+import { useInventoryLogs } from "@/hooks/useInventoryLogs";
+import { useProfile } from "@/hooks/useProfile";
+import { InventoryHealthHistory } from "@/components/inventory/InventoryHealthHistory";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 const statusColors: Record<string, string> = {
-  available: "bg-green-500/10 text-green-600 border-green-500/20",
-  in_use: "bg-amber-500/10 text-amber-600 border-amber-500/20",
-  maintenance: "bg-red-500/10 text-red-600 border-red-500/20",
+  available: "bg-[hsl(var(--vault-success))]/10 text-[hsl(var(--vault-success))] border-[hsl(var(--vault-success))]/20",
+  in_use: "bg-[hsl(var(--vault-warning))]/10 text-[hsl(var(--vault-warning))] border-[hsl(var(--vault-warning))]/20",
+  maintenance: "bg-destructive/10 text-destructive border-destructive/20",
 };
 
 const categories = ["Camera", "Lighting", "Audio", "Props", "Backdrops", "Other"];
 
 export default function Inventory() {
   const { items, isLoading, createItem, updateItem, deleteItem } = useInventory();
+  const { createLog } = useInventoryLogs();
+  const { profile } = useProfile();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
+  const [expandedItem, setExpandedItem] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     item_name: "",
     category: "",
@@ -80,6 +88,44 @@ export default function Inventory() {
   const handleDelete = async (id: string) => {
     if (confirm("Are you sure you want to delete this item?")) {
       await deleteItem.mutateAsync(id);
+    }
+  };
+
+  const handleFlagMaintenance = async (item: InventoryItem) => {
+    try {
+      await updateItem.mutateAsync({ id: item.id, status: "maintenance" });
+      await createLog.mutateAsync({
+        inventory_id: item.id,
+        log_type: "flagged_maintenance",
+        description: "Flagged for maintenance",
+        performed_by: profile?.user_id || null,
+        performed_by_name: profile?.full_name || null,
+        log_date: new Date().toISOString().split("T")[0],
+        project_id: null,
+        booking_id: null,
+      });
+      toast.success(`${item.item_name} flagged for maintenance`);
+    } catch (error) {
+      toast.error("Failed to flag item");
+    }
+  };
+
+  const handleClearMaintenance = async (item: InventoryItem) => {
+    try {
+      await updateItem.mutateAsync({ id: item.id, status: "available" });
+      await createLog.mutateAsync({
+        inventory_id: item.id,
+        log_type: "cleared_maintenance",
+        description: "Cleared from maintenance - ready for use",
+        performed_by: profile?.user_id || null,
+        performed_by_name: profile?.full_name || null,
+        log_date: new Date().toISOString().split("T")[0],
+        project_id: null,
+        booking_id: null,
+      });
+      toast.success(`${item.item_name} is now available`);
+    } catch (error) {
+      toast.error("Failed to clear maintenance flag");
     }
   };
 
@@ -139,62 +185,104 @@ export default function Inventory() {
                 </CardHeader>
                 <CardContent className="space-y-2">
                   {categoryItems.map((item) => (
-                    <div
+                    <Collapsible
                       key={item.id}
-                      className="flex items-center justify-between rounded-lg border border-border/50 p-2"
+                      open={expandedItem === item.id}
+                      onOpenChange={(open) => setExpandedItem(open ? item.id : null)}
                     >
-                      <div className="min-w-0 flex-1">
-                        <p className="font-medium text-sm truncate">{item.item_name}</p>
-                        <Badge
-                          variant="outline"
-                          className={cn(
-                            "text-[9px] capitalize h-4 mt-1",
-                            statusColors[item.status]
-                          )}
-                        >
-                          {item.status.replace("_", " ")}
-                        </Badge>
+                      <div className="rounded-lg border border-border/50 p-2">
+                        <div className="flex items-center justify-between">
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium text-sm truncate">{item.item_name}</p>
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                "text-[9px] capitalize h-4 mt-1",
+                                statusColors[item.status]
+                              )}
+                            >
+                              {item.status.replace("_", " ")}
+                            </Badge>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            {/* Flag for Maintenance Button */}
+                            {item.status !== "maintenance" ? (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                onClick={() => handleFlagMaintenance(item)}
+                                title="Flag for Maintenance"
+                              >
+                                <Wrench className="h-4 w-4" />
+                              </Button>
+                            ) : (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-destructive hover:text-[hsl(var(--vault-success))]"
+                                onClick={() => handleClearMaintenance(item)}
+                                title="Clear Maintenance Flag"
+                              >
+                                <Sparkles className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {/* History Toggle */}
+                            <CollapsibleTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                title="View History"
+                              >
+                                <History className="h-4 w-4" />
+                              </Button>
+                            </CollapsibleTrigger>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-7 w-7">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => handleOpenEdit(item)}>
+                                  Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() =>
+                                    updateItem.mutate({ id: item.id, status: "available" })
+                                  }
+                                >
+                                  Mark Available
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() =>
+                                    updateItem.mutate({ id: item.id, status: "in_use" })
+                                  }
+                                >
+                                  Mark In Use
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  className="text-destructive"
+                                  onClick={() => handleDelete(item.id)}
+                                >
+                                  Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        </div>
+
+                        {/* Health History Panel */}
+                        <CollapsibleContent className="mt-3 pt-3 border-t border-border/50">
+                          <p className="font-heading text-xs font-medium mb-2 flex items-center gap-1.5">
+                            <History className="h-3 w-3" />
+                            Health History
+                          </p>
+                          <InventoryHealthHistory inventoryId={item.id} />
+                        </CollapsibleContent>
                       </div>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-7 w-7">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleOpenEdit(item)}>
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() =>
-                              updateItem.mutate({ id: item.id, status: "available" })
-                            }
-                          >
-                            Mark Available
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() =>
-                              updateItem.mutate({ id: item.id, status: "in_use" })
-                            }
-                          >
-                            Mark In Use
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() =>
-                              updateItem.mutate({ id: item.id, status: "maintenance" })
-                            }
-                          >
-                            Mark Maintenance
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            className="text-destructive"
-                            onClick={() => handleDelete(item.id)}
-                          >
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
+                    </Collapsible>
                   ))}
                 </CardContent>
               </Card>

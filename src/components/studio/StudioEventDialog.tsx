@@ -59,7 +59,7 @@ export function StudioEventDialog({
 }: StudioEventDialogProps) {
   const { createBooking, updateBooking, deleteBooking } = useStudioBookings();
   const { createSignatureRequest } = useSignatureRequests();
-  const { items: inventoryItems } = useInventory();
+   const { availableItems: inventoryItems } = useInventory();
   const { checkAvailability, isChecking: isAIChecking, result: aiResult, clearResult } = useSmartBooking();
   const [isChecking, setIsChecking] = useState(false);
   const [clientEmail, setClientEmail] = useState("");

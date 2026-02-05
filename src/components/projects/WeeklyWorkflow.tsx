@@ -23,8 +23,10 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format, startOfWeek, endOfWeek, addWeeks, isWithinInterval, parseISO } from "date-fns";
+ import { isBefore, startOfDay } from "date-fns";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useStaffProfiles } from "@/hooks/useStaffProfiles";
+ import { cn } from "@/lib/utils";
 
 interface Task {
   id: string;
@@ -174,7 +176,12 @@ export function WeeklyWorkflow({ projectId }: WeeklyWorkflowProps) {
 
       <div className="mt-2 flex items-center gap-2">
         {task.due_date && (
-          <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+           <span className={cn(
+             "flex items-center gap-1 text-[10px]",
+             isBefore(parseISO(task.due_date), startOfDay(new Date())) && task.status !== "done"
+               ? "text-[hsl(var(--vault-warning))]"
+               : "text-muted-foreground"
+           )}>
             <Clock className="h-3 w-3" />
             {format(parseISO(task.due_date), "EEE d")}
           </span>

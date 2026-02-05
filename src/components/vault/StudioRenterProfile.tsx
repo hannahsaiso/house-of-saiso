@@ -9,20 +9,34 @@
    Clock,
    CheckCircle2,
    XCircle,
+   ArrowRight,
+   Loader2,
  } from "lucide-react";
  import { supabase } from "@/integrations/supabase/client";
  import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
  import { Badge } from "@/components/ui/badge";
+ import { Button } from "@/components/ui/button";
  import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
  import { Separator } from "@/components/ui/separator";
  import { cn } from "@/lib/utils";
+ import { useMutation, useQueryClient } from "@tanstack/react-query";
+ import { toast } from "sonner";
  
  interface StudioRenterProfileProps {
    clientId: string;
    clientName: string;
+   clientEmail?: string;
+   clientCompany?: string;
  }
  
- export function StudioRenterProfile({ clientId, clientName }: StudioRenterProfileProps) {
+ export function StudioRenterProfile({ 
+   clientId, 
+   clientName,
+   clientEmail,
+   clientCompany,
+ }: StudioRenterProfileProps) {
+   const queryClient = useQueryClient();
+ 
    // Fetch booking history
    const { data: bookings } = useQuery({
      queryKey: ["client-bookings", clientId],
@@ -66,6 +80,48 @@
      },
    });
  
+   // Convert to Agency Lead mutation
+   const convertToLead = useMutation({
+     mutationFn: async () => {
+       const { data: user } = await supabase.auth.getUser();
+       
+       // Create a new project with Lead status
+       const { data: project, error: projectError } = await supabase
+         .from("projects")
+         .insert({
+           title: `${clientName} - Agency Lead`,
+           description: `Converted from Studio Renter. Contact: ${clientEmail || "N/A"}`,
+           status: "lead",
+           client_id: clientId,
+           created_by: user.user?.id,
+         })
+         .select()
+         .single();
+       
+       if (projectError) throw projectError;
+       
+       // Update client type to include agency_client
+       const { error: clientError } = await supabase
+         .from("clients")
+         .update({
+           client_type: ["studio_renter", "agency_client"],
+         })
+         .eq("id", clientId);
+       
+       if (clientError) throw clientError;
+       
+       return project;
+     },
+     onSuccess: () => {
+       queryClient.invalidateQueries({ queryKey: ["clients"] });
+       queryClient.invalidateQueries({ queryKey: ["projects"] });
+       toast.success("Client converted to Agency Lead");
+     },
+     onError: (error) => {
+       toast.error("Failed to convert: " + error.message);
+     },
+   });
+ 
    return (
      <div className="space-y-6">
        <div className="flex items-center gap-3">
@@ -81,6 +137,22 @@
              Studio Renter
            </Badge>
          </div>
+         
+         {/* Convert to Agency Lead Button */}
+         <Button
+           variant="outline"
+           size="sm"
+           className="ml-auto gap-2 text-xs"
+           onClick={() => convertToLead.mutate()}
+           disabled={convertToLead.isPending}
+         >
+           {convertToLead.isPending ? (
+             <Loader2 className="h-3 w-3 animate-spin" />
+           ) : (
+             <ArrowRight className="h-3 w-3" />
+           )}
+           Convert to Agency Lead
+         </Button>
        </div>
  
        <Tabs defaultValue="bookings" className="w-full">

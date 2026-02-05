@@ -97,6 +97,7 @@ export function useInventory() {
 
   return {
     items: items || [],
+     availableItems: (items || []).filter(item => item.status !== "maintenance"),
     isLoading,
     createItem,
     updateItem,
