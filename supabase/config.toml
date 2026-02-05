@@ -1,27 +1,45 @@
 project_id = "zvoelshrluaotjrmxzho"
 
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+major_version = 15
+
+[studio]
+enabled = true
+port = 54323
+
 [functions.docusign-signature]
 verify_jwt = false
 
 [functions.google-oauth-callback]
 verify_jwt = false
 
+[functions.google-oauth-config]
+verify_jwt = false
+
+[functions.client-intake-upload]
+verify_jwt = false
+
 [functions.parse-booking-emails]
 verify_jwt = false
 
-[functions.smart-booking-assistant]
+[functions.generate-project-charter]
+verify_jwt = false
+
+[functions.create-project-drive]
 verify_jwt = false
 
 [functions.setup-staff-drive]
 verify_jwt = false
 
-[functions.create-project-drive]
-verify_jwt = false
- 
-[functions.generate-project-charter]
-verify_jwt = false
- 
-[functions.client-intake-upload]
+[functions.smart-booking-assistant]
 verify_jwt = false
 
 [functions.ai-search]

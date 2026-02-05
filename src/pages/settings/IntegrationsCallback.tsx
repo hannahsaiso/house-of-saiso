@@ -41,11 +41,14 @@ const IntegrationsCallback = () => {
       }
 
       try {
+        // Fixed redirect URI - must match Google Cloud Console configuration
+        const redirectUri = "https://zvoelshrluaotjrmxzho.lovable.app/auth/callback";
+        
         // Exchange code for tokens via edge function
         const { data, error: fnError } = await supabase.functions.invoke("google-oauth-callback", {
           body: { 
             code,
-            redirect_uri: `${window.location.origin}/settings/integrations/callback`
+            redirect_uri: redirectUri
           },
         });
 

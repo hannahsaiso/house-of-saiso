@@ -53,6 +53,8 @@ const App = () => (
               <Route path="integrations" element={<Integrations />} />
               <Route path="integrations/callback" element={<IntegrationsCallback />} />
             </Route>
+            {/* Google OAuth callback - matches Google Cloud Console redirect URI */}
+            <Route path="/auth/callback" element={<IntegrationsCallback />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
