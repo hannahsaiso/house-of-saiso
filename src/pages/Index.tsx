@@ -5,7 +5,9 @@ import { StudioBookingCard } from "@/components/dashboard/StudioBookingCard";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { OnboardingQueue } from "@/components/dashboard/OnboardingQueue";
 import { PendingSignaturesWidget } from "@/components/dashboard/PendingSignaturesWidget";
+import { StrategicInsightsDrawer } from "@/components/insights/StrategicInsightsDrawer";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useStrategicInsights } from "@/hooks/useStrategicInsights";
 import { motion } from "framer-motion";
 
 // Mock data - will be replaced with Supabase queries
@@ -62,6 +64,7 @@ const mockBookings = [
 
 const Index = () => {
   const { role, isAdminOrStaff, isLoading: roleLoading } = useUserRole();
+  const { insights } = useStrategicInsights();
 
   return (
     <DashboardLayout>
@@ -144,6 +147,11 @@ const Index = () => {
           </motion.section>
         </div>
       </div>
+
+      {/* Strategic Insights Drawer - Admin/Staff only */}
+      {!roleLoading && isAdminOrStaff && (
+        <StrategicInsightsDrawer insights={insights} />
+      )}
     </DashboardLayout>
   );
 };

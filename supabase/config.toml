@@ -18,8 +18,11 @@ verify_jwt = false
 [functions.create-project-drive]
 verify_jwt = false
  
- [functions.generate-project-charter]
- verify_jwt = false
+[functions.generate-project-charter]
+verify_jwt = false
  
- [functions.client-intake-upload]
- verify_jwt = false
+[functions.client-intake-upload]
+verify_jwt = false
+
+[functions.ai-search]
+verify_jwt = false
