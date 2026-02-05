@@ -1,13 +1,13 @@
  import { useState, useEffect, useCallback } from "react";
  import { useParams, useSearchParams } from "react-router-dom";
  import { motion, AnimatePresence } from "framer-motion";
- import { Upload, X, FileImage, FileText, Loader2, Check, Plus, Link as LinkIcon, Sparkles } from "lucide-react";
+import { Upload, X, FileImage, FileText, Loader2, Check, Plus, Link as LinkIcon, Sparkles, Clock, CheckCircle2, User } from "lucide-react";
  import { Button } from "@/components/ui/button";
  import { Input } from "@/components/ui/input";
  import { useToast } from "@/hooks/use-toast";
  import { supabase } from "@/integrations/supabase/client";
- import { SuccessAnimation } from "@/components/ui/success-animation";
  import { cn } from "@/lib/utils";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
  
  interface UploadedFile {
    id: string;
@@ -35,6 +35,7 @@
    const [isSubmitting, setIsSubmitting] = useState(false);
    const [showSuccess, setShowSuccess] = useState(false);
    const [uploadedCount, setUploadedCount] = useState(0);
+  const [submittedClientName, setSubmittedClientName] = useState("");
  
    // Validate token on mount
    useEffect(() => {
@@ -197,6 +198,7 @@
          throw new Error(data?.error || "Failed to complete onboarding");
        }
  
+        setSubmittedClientName(clientName);
        setShowSuccess(true);
      } catch (err: any) {
        toast({
@@ -243,15 +245,120 @@
      );
    }
  
-   return (
-     <div className="min-h-screen bg-background">
-       <SuccessAnimation
-         show={showSuccess}
-         message="Assets received. We'll be in touch."
-         onComplete={() => {}}
-       />
- 
-       {/* Editorial Header */}
+    // Success Page UI
+    if (showSuccess) {
+      return (
+        <div className="min-h-screen bg-background">
+          <main className="max-w-2xl mx-auto px-6 py-16 md:py-24">
+            {/* Success Header */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-center mb-16"
+            >
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ delay: 0.2, type: "spring", damping: 12 }}
+                className="w-20 h-20 rounded-full bg-primary/10 border-2 border-primary flex items-center justify-center mx-auto mb-8"
+              >
+                <Check className="w-10 h-10 text-primary" strokeWidth={2.5} />
+              </motion.div>
+              <h1 className="font-serif text-3xl md:text-4xl text-foreground mb-3">
+                The Foundation is Set.
+              </h1>
+              <p className="text-muted-foreground text-lg">
+                Thank you, {submittedClientName}. Your vision is now in our hands.
+              </p>
+            </motion.div>
+
+            {/* Roadmap Items */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="space-y-6 mb-16"
+            >
+              <h2 className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-6">
+                What Happens Next
+              </h2>
+              
+              {/* Strategy Review - In Progress */}
+              <div className="flex items-start gap-4 p-5 rounded-lg border border-border bg-card">
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <Clock className="w-5 h-5 text-primary animate-pulse" />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className="font-serif text-lg text-foreground">Strategy Review</h3>
+                    <span className="text-xs uppercase tracking-wider text-primary bg-primary/10 px-2 py-0.5 rounded">
+                      In Progress
+                    </span>
+                  </div>
+                  <p className="text-muted-foreground">
+                    Our team is currently synthesising your Brand DNA.
+                  </p>
+                </div>
+              </div>
+
+              {/* Internal Alignment - Pending */}
+              <div className="flex items-start gap-4 p-5 rounded-lg border border-border/50 bg-muted/30">
+                <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
+                  <CheckCircle2 className="w-5 h-5 text-muted-foreground" />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className="font-serif text-lg text-foreground/70">Internal Alignment</h3>
+                    <span className="text-xs uppercase tracking-wider text-muted-foreground bg-muted px-2 py-0.5 rounded">
+                      Pending
+                    </span>
+                  </div>
+                  <p className="text-muted-foreground/70">
+                    We will be in touch shortly.
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Personal Note from Hannah */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
+              className="border-t border-border pt-10"
+            >
+              <div className="flex items-start gap-5">
+                <Avatar className="w-14 h-14 border-2 border-border">
+                  <AvatarImage src="" alt="Hannah" />
+                  <AvatarFallback className="bg-muted font-serif text-lg">H</AvatarFallback>
+                </Avatar>
+                <div className="flex-1">
+                  <p className="font-serif text-lg text-foreground italic leading-relaxed mb-3">
+                    "I've received your brief. We're diving in now."
+                  </p>
+                  <p className="text-muted-foreground">
+                    — Hannah
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          </main>
+
+          {/* Footer */}
+          <footer className="border-t border-border/50 py-8 mt-16">
+            <div className="max-w-2xl mx-auto px-6 text-center">
+              <p className="text-xs text-muted-foreground uppercase tracking-widest">
+                House of Saiso
+              </p>
+            </div>
+          </footer>
+        </div>
+      );
+    }
+
+    return (
+      <div className="min-h-screen bg-background">
+        {/* Editorial Header */}
        <header className="border-b border-border/50 bg-background/95 backdrop-blur-sm sticky top-0 z-10">
          <div className="max-w-3xl mx-auto px-6 py-6">
            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-2">
