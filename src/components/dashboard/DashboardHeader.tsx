@@ -1,5 +1,10 @@
 import { motion } from "framer-motion";
+import { LogOut } from "lucide-react";
 import { NotificationBell } from "./NotificationBell";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 interface DashboardHeaderProps {
   userName?: string;
@@ -10,6 +15,15 @@ export function DashboardHeader({
   userName,
   userRole = "admin",
 }: DashboardHeaderProps) {
+  const { signOut, user } = useAuth();
+  const navigate = useNavigate();
+
+  const handleSignOut = async () => {
+    await signOut();
+    toast.success("Signed out successfully");
+    navigate("/auth", { replace: true });
+  };
+
   const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return "Good morning";
@@ -46,7 +60,18 @@ export function DashboardHeader({
           Here's what's happening across your agency and studio.
         </p>
       </div>
-      <NotificationBell />
+      <div className="flex items-center gap-3">
+        <NotificationBell />
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={handleSignOut}
+          className="text-muted-foreground hover:text-foreground"
+          title="Sign out"
+        >
+          <LogOut className="h-4 w-4" />
+        </Button>
+      </div>
     </motion.div>
   );
 }
