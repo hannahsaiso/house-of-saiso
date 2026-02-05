@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 export interface SourceReference {
@@ -20,7 +20,7 @@ export function useAISearch() {
   const [sources, setSources] = useState<SourceReference[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  const performAISearch = async (query: string): Promise<AISearchResult> => {
+  const performAISearch = useCallback(async (query: string): Promise<AISearchResult> => {
     if (!query || query.trim().length < 3) {
       setAiAnswer(null);
       setSources([]);
@@ -60,13 +60,13 @@ export function useAISearch() {
     } finally {
       setIsSearching(false);
     }
-  };
+  }, []);
 
-  const clearAIAnswer = () => {
+  const clearAIAnswer = useCallback(() => {
     setAiAnswer(null);
     setSources([]);
     setError(null);
-  };
+  }, []);
 
   return {
     performAISearch,
