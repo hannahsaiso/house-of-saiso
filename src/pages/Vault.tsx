@@ -1,7 +1,8 @@
 import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Lock, Loader2, TrendingUp } from "lucide-react";
+import { Lock, Loader2, TrendingUp, ChevronLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useUserRole } from "@/hooks/useUserRole";
 import { toast } from "sonner";
 import { VaultLayout } from "@/components/vault/VaultLayout";
@@ -72,12 +73,28 @@ const Vault = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <div className="mb-8 flex items-center gap-3">
-              <Lock className="h-5 w-5 text-[hsl(43_65%_52%)]" />
-              <p className="text-xs font-medium uppercase tracking-[0.2em] text-[hsl(0_0%_50%)]">
-                Admin Only
-              </p>
-            </div>
+          {/* Breadcrumb Navigation */}
+          <div className="mb-6">
+            <Button
+              variant="ghost"
+              asChild
+              className="group -ml-2 gap-1.5 px-2 text-[hsl(0_0%_50%)] hover:bg-transparent hover:text-[hsl(45_30%_90%)]"
+            >
+              <Link to="/">
+                <ChevronLeft className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" />
+                <span className="font-heading text-xs uppercase tracking-[0.15em]">
+                  Dashboard
+                </span>
+              </Link>
+            </Button>
+          </div>
+
+          <div className="mb-8 flex items-center gap-3">
+            <Lock className="h-5 w-5 text-[hsl(43_65%_52%)]" />
+            <p className="text-xs font-medium uppercase tracking-[0.2em] text-[hsl(0_0%_50%)]">
+              Admin Only
+            </p>
+          </div>
             <div className="flex items-start justify-between">
               <div>
                 <h1 className="font-heading text-4xl font-semibold text-[hsl(45_30%_90%)]">
