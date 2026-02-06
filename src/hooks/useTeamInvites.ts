@@ -32,6 +32,8 @@ export function useTeamInvites() {
   const sendInvite = useMutation({
     mutationFn: async ({ email, role }: { email: string; role: "admin" | "staff" | "client" }) => {
       const { data: user } = await supabase.auth.getUser();
+      
+      // 1. Create the invite record
       const { data: invite, error } = await supabase
         .from("team_invites")
         .insert({
@@ -43,8 +45,7 @@ export function useTeamInvites() {
         .single();
       if (error) throw error;
 
-      // Also create/update a pending team member record for tracking.
-      // (Profiles cannot be created until the user actually signs up and has a user_id.)
+      // 2. Also create/update a pending team member record for tracking.
       const { error: memberError } = await supabase
         .from("team_members")
         .upsert(
@@ -59,12 +60,44 @@ export function useTeamInvites() {
 
       if (memberError) throw memberError;
 
+      // 3. Try to send email via Gmail API (edge function)
+      try {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("full_name")
+          .eq("user_id", user.user?.id)
+          .single();
+
+        const { data: emailResult, error: emailError } = await supabase.functions.invoke(
+          "send-team-invite",
+          {
+            body: {
+              inviteId: invite.id,
+              inviterName: profile?.full_name || "House of Saiso Team",
+            },
+          }
+        );
+
+        if (emailError) {
+          console.warn("Failed to send invite email:", emailError);
+          // Don't throw - invite was still created
+        } else if (emailResult?.needsGoogleAuth) {
+          toast.info(emailResult.message || "Email not sent - use the Copy Link button instead.");
+        } else if (emailResult?.success) {
+          toast.success(`Invitation email sent to ${email}`);
+          return invite;
+        }
+      } catch (err) {
+        console.warn("Email sending failed:", err);
+        // Don't throw - invite was still created
+      }
+
       return invite;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["team-invites"] });
       queryClient.invalidateQueries({ queryKey: ["team-members"] });
-      toast.success(`Invitation sent to ${data.email}`);
+      toast.success(`Invitation created for ${data.email}. Use "Copy Link" to share it directly.`);
     },
     onError: (error) => {
       toast.error("Failed to send invite: " + error.message);
@@ -96,3 +129,4 @@ export function useTeamInvites() {
     revokeInvite,
   };
 }
+
