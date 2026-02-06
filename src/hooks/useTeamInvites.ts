@@ -94,10 +94,25 @@ export function useTeamInvites() {
 
       return invite;
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       queryClient.invalidateQueries({ queryKey: ["team-invites"] });
       queryClient.invalidateQueries({ queryKey: ["team-members"] });
-      toast.success(`Invitation created for ${data.email}. Use "Copy Link" to share it directly.`);
+
+      const inviteLink = `${window.location.origin}/join?token=${data.token}`;
+
+      toast.success(`Invitation created for ${data.email}.`, {
+        action: {
+          label: "Copy link",
+          onClick: async () => {
+            try {
+              await navigator.clipboard.writeText(inviteLink);
+              toast.success("Invite link copied");
+            } catch {
+              toast.error("Could not copy invite link");
+            }
+          },
+        },
+      });
     },
     onError: (error) => {
       toast.error("Failed to send invite: " + error.message);
