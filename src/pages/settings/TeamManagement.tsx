@@ -55,7 +55,8 @@ export default function TeamManagement() {
           <InviteMemberDialog
             isInviting={sendInvite.isPending}
             onInvite={async ({ email, role }) => {
-              await sendInvite.mutateAsync({ email, role });
+              const result = await sendInvite.mutateAsync({ email, role });
+              return result ? { token: result.token, email: result.email } : null;
             }}
           />
         )}
