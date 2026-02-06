@@ -1,11 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, CheckCircle, AlertCircle } from "lucide-react";
+import { Loader2, CheckCircle, AlertCircle, Sparkles, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 
 interface InviteData {
@@ -21,17 +21,25 @@ export default function JoinTeam() {
   const queryToken = searchParams.get("token");
   const token = queryToken || pathToken; // Support both ?token= and /join/:token formats
   const navigate = useNavigate();
-  
+
   const [inviteData, setInviteData] = useState<InviteData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isExpired, setIsExpired] = useState(false);
   const [isAlreadyAccepted, setIsAlreadyAccepted] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   const [fullName, setFullName] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isAccepting, setIsAccepting] = useState(false);
+
+  const authRedirect = useMemo(() => {
+    const base = "/auth";
+    const redirect = token ? `/join?token=${encodeURIComponent(token)}` : "/";
+    const email = inviteData?.email ? `&email=${encodeURIComponent(inviteData.email)}` : "";
+    return `${base}?redirect=${encodeURIComponent(redirect)}${email}`;
+  }, [inviteData?.email, token]);
 
   useEffect(() => {
     async function validateToken() {
@@ -42,7 +50,7 @@ export default function JoinTeam() {
       }
 
       try {
-        // Query invite by token - this is a public query allowed by RLS
+        // Public SELECT allowed by RLS
         const { data: invite, error: queryError } = await supabase
           .from("team_invites")
           .select("id, email, invited_role, expires_at, accepted_at")
@@ -91,6 +99,49 @@ export default function JoinTeam() {
     validateToken();
   }, [token]);
 
+  // If the user is already authenticated (e.g. after email verification), accept the invite and link role automatically.
+  useEffect(() => {
+    async function maybeAcceptInvite() {
+      if (!inviteData || !token || isExpired || isAlreadyAccepted || error) return;
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) return;
+
+      setIsAccepting(true);
+      try {
+        // 1) Mark invite accepted
+        const { error: inviteError } = await supabase
+          .from("team_invites")
+          .update({ accepted_at: new Date().toISOString() })
+          .eq("id", inviteData.id);
+        if (inviteError) throw inviteError;
+
+        // 2) Activate membership record
+        const { error: memberError } = await supabase
+          .from("team_members")
+          .update({ status: "active", user_id: session.user.id })
+          .eq("email", inviteData.email);
+        if (memberError) throw memberError;
+
+        // 3) Create user role (policy allows only if role matches invite)
+        const { error: roleError } = await supabase
+          .from("user_roles")
+          .insert({ user_id: session.user.id, role: inviteData.invited_role });
+        if (roleError) throw roleError;
+
+        toast.success("Welcome—your access is now active.");
+        navigate("/", { replace: true });
+      } catch (e: any) {
+        console.error("Invite acceptance failed:", e);
+        toast.error(e?.message || "Could not complete join. Please sign in again and retry.");
+      } finally {
+        setIsAccepting(false);
+      }
+    }
+
+    maybeAcceptInvite();
+  }, [inviteData, token, isExpired, isAlreadyAccepted, error, navigate]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -109,11 +160,13 @@ export default function JoinTeam() {
     setIsSubmitting(true);
 
     try {
-      // 1. Sign up the user with the invited email
+      // Sign up using invited email.
+      // NOTE: With email verification enabled, the session is typically null until the user verifies.
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email: inviteData.email,
         password,
         options: {
+          emailRedirectTo: `${window.location.origin}/join?token=${encodeURIComponent(token!)}`,
           data: {
             full_name: fullName,
           },
@@ -121,49 +174,25 @@ export default function JoinTeam() {
       });
 
       if (signUpError) {
-        // Check if user already exists
-        if (signUpError.message.includes("already registered")) {
+        if (signUpError.message.toLowerCase().includes("already registered")) {
           toast.error("An account with this email already exists. Please sign in instead.");
-          navigate("/auth");
+          navigate(authRedirect);
           return;
         }
         throw signUpError;
       }
 
-      if (!signUpData.user) {
-        throw new Error("Failed to create account");
+      // If the platform returns a live session immediately (rare when verification required), we can accept right away.
+      if (signUpData.session?.user) {
+        toast.success("Account created—finalizing your access...");
+        // Let the acceptance effect run on next tick.
+        setTimeout(() => void 0, 0);
+      } else {
+        toast.success("Account created! Please verify your email to activate access.");
       }
 
-      // 2. Mark invite as accepted (this will be done by the user after email verification)
-      // For now, we'll update team_members status
-      const { error: memberError } = await supabase
-        .from("team_members")
-        .update({ 
-          status: "active",
-          user_id: signUpData.user.id 
-        })
-        .eq("email", inviteData.email);
-
-      if (memberError) {
-        console.error("Error updating team member:", memberError);
-      }
-
-      // 3. Update the invite as accepted
-      await supabase
-        .from("team_invites")
-        .update({ accepted_at: new Date().toISOString() })
-        .eq("id", inviteData.id);
-
-      // 4. Create user role
-      await supabase
-        .from("user_roles")
-        .insert({
-          user_id: signUpData.user.id,
-          role: inviteData.invited_role,
-        });
-
-      toast.success("Account created! Please check your email to verify your account.");
-      navigate("/auth");
+      // Keep them in-flow: send to sign-in with redirect back to this invite.
+      navigate(authRedirect);
     } catch (err: any) {
       console.error("Error creating account:", err);
       toast.error(err.message || "Failed to create account");
@@ -181,20 +210,18 @@ export default function JoinTeam() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted/30 p-4">
-      <div className="w-full max-w-md space-y-6">
-        {/* Logo & Branding */}
-        <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-4">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/40 p-4">
+      <div className="mx-auto w-full max-w-md space-y-6 pt-10">
+        {/* Brand mark */}
+        <header className="text-center space-y-2">
+          <div className="mx-auto inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 ring-1 ring-border/60">
             <span className="text-2xl font-heading font-bold text-primary">HS</span>
           </div>
-          <h1 className="font-heading text-2xl font-semibold tracking-tight">
-            House of Saiso
-          </h1>
-          <p className="text-muted-foreground text-sm">
-            Creative Studio Management
-          </p>
-        </div>
+          <div className="space-y-1">
+            <h1 className="font-heading text-2xl font-semibold tracking-tight">House of Saiso</h1>
+            <p className="text-muted-foreground text-sm">Private access portal</p>
+          </div>
+        </header>
 
         {error && (
           <Card className="border-destructive/50">
@@ -235,7 +262,7 @@ export default function JoinTeam() {
                   </p>
                 </div>
               </div>
-              <Button onClick={() => navigate("/auth")} className="w-full mt-4">
+              <Button onClick={() => navigate(authRedirect)} className="w-full mt-4">
                 Go to Sign In
               </Button>
             </CardContent>
@@ -243,85 +270,99 @@ export default function JoinTeam() {
         )}
 
         {inviteData && !error && !isExpired && !isAlreadyAccepted && (
-          <Card>
+          <Card className="overflow-hidden">
             <CardHeader className="text-center">
-              <CardTitle className="font-heading">Welcome to the Team!</CardTitle>
+              <CardTitle className="font-heading flex items-center justify-center gap-2">
+                <Sparkles className="h-5 w-5 text-primary" />
+                Create your House of Saiso account
+              </CardTitle>
               <CardDescription>
-                You've been invited to join as{" "}
-                <span className="font-medium capitalize text-foreground">
-                  {inviteData.invited_role}
-                </span>
+                You’ve been invited to join as{" "}
+                <span className="font-medium capitalize text-foreground">{inviteData.invited_role}</span>.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={inviteData.email}
-                    disabled
-                    className="bg-muted"
-                  />
+              {isAccepting ? (
+                <div className="py-10 text-center space-y-3">
+                  <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">Finalizing your access…</p>
                 </div>
+              ) : (
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input id="email" type="email" value={inviteData.email} disabled className="bg-muted" />
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="fullName">Full Name</Label>
-                  <Input
-                    id="fullName"
-                    type="text"
-                    placeholder="Enter your full name"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    required
-                  />
-                </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="fullName">Full Name</Label>
+                    <Input
+                      id="fullName"
+                      type="text"
+                      placeholder="Enter your full name"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      required
+                    />
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="Create a password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    minLength={6}
-                  />
-                </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Password</Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      placeholder="Create a password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      minLength={6}
+                    />
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">Confirm Password</Label>
-                  <Input
-                    id="confirmPassword"
-                    type="password"
-                    placeholder="Confirm your password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    required
-                    minLength={6}
-                  />
-                </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="confirmPassword">Confirm Password</Label>
+                    <Input
+                      id="confirmPassword"
+                      type="password"
+                      placeholder="Confirm your password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      required
+                      minLength={6}
+                    />
+                  </div>
 
-                <Button type="submit" className="w-full" disabled={isSubmitting}>
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Creating Account...
-                    </>
-                  ) : (
-                    "Create Account & Join"
-                  )}
-                </Button>
-              </form>
+                  <Button type="submit" className="w-full" disabled={isSubmitting}>
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Creating Account…
+                      </>
+                    ) : (
+                      <span className="inline-flex items-center gap-2">
+                        Create Account
+                        <ArrowRight className="h-4 w-4" />
+                      </span>
+                    )}
+                  </Button>
 
-              <p className="text-xs text-center text-muted-foreground mt-4">
-                Already have an account?{" "}
-                <Button variant="link" className="p-0 h-auto" onClick={() => navigate("/auth")}>
-                  Sign in
-                </Button>
-              </p>
+                  <p className="text-xs text-center text-muted-foreground">
+                    After creating your account, you’ll verify your email and be redirected back here to activate your
+                    role automatically.
+                  </p>
+
+                  <div className="pt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => navigate(authRedirect)}
+                    >
+                      Already have an account? Sign in
+                    </Button>
+                  </div>
+                </form>
+              )}
             </CardContent>
           </Card>
         )}
