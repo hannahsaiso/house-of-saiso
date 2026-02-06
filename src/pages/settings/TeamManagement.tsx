@@ -25,7 +25,7 @@ export default function TeamManagement() {
 
   const copyInviteLink = async (token: string, inviteId: string) => {
     const baseUrl = window.location.origin;
-    const inviteLink = `${baseUrl}/join/${token}`;
+    const inviteLink = `${baseUrl}/join?token=${token}`;
     
     try {
       await navigator.clipboard.writeText(inviteLink);
