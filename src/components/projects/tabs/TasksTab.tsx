@@ -107,15 +107,21 @@ export function TasksTab({ projectId }: TasksTabProps) {
           />
           <div className="min-w-0 flex-1">
             <div className="flex items-start justify-between gap-2">
-              <p
-                className={`font-medium ${
-                  task.status === "done"
-                    ? "text-muted-foreground line-through"
-                    : ""
-                }`}
-              >
-                {task.title}
-              </p>
+              <div className="flex-1">
+                <p
+                  className={`font-medium ${
+                    task.status === "done"
+                      ? "text-muted-foreground line-through"
+                      : ""
+                  }`}
+                >
+                  {task.title}
+                </p>
+                {/* Timestamp display */}
+                <p className="mt-0.5 text-[10px] text-muted-foreground/70">
+                  Created {format(new Date(task.created_at), "MMM d, h:mm a")}
+                </p>
+              </div>
               <div className="flex shrink-0 items-center gap-2">
                 <Badge
                   variant="outline"
