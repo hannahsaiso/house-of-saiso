@@ -24,6 +24,7 @@ import { Separator } from "@/components/ui/separator";
 import { GoogleConnectionStatus } from "./GoogleConnectionStatus";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ShareOnboardingDialog } from "@/components/admin/ShareOnboardingDialog";
+import { GlobalClock } from "./GlobalClock";
 
 interface NavItem {
   title: string;
@@ -159,14 +160,16 @@ export function AppSidebar() {
       collapsible="icon"
     >
       {/* Logo / Brand */}
-      <SidebarHeader className="border-b border-sidebar-border px-4 py-6">
+      <SidebarHeader className="border-b border-sidebar-border px-4 py-4">
         <div className="flex items-center justify-between">
-          {!collapsed && (
-            <h1 className="font-heading text-lg font-semibold tracking-wide-xl text-sidebar-foreground">
-              HOUSE OF SAISO
-            </h1>
-          )}
-          {collapsed && (
+          {!collapsed ? (
+            <>
+              <h1 className="font-heading text-lg font-semibold tracking-wide-xl text-sidebar-foreground">
+                HOUSE OF SAISO
+              </h1>
+              <GlobalClock />
+            </>
+          ) : (
             <span className="font-heading text-xl font-bold text-sidebar-primary">
               HS
             </span>

@@ -1,13 +1,14 @@
- import { useState } from "react";
+ import { useState, useMemo } from "react";
  import { Progress } from "@/components/ui/progress";
  import { Switch } from "@/components/ui/switch";
  import { Label } from "@/components/ui/label";
 import { useFinancialEntries } from "@/hooks/useFinancialEntries";
 import { useStudioBookings } from "@/hooks/useStudioBookings";
-import { startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
+import { startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, isWithinInterval, format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
  import { RevenuePulseSettings, RevenuePulseConfig } from "./RevenuePulseSettings";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface RevenuePulseProps {
   goal?: number;
@@ -35,17 +36,30 @@ export function RevenuePulse({ goal = 20000 }: RevenuePulseProps) {
      goal,
    }));
    const [showNetProfit, setShowNetProfit] = useState(false);
+  const [timeFilter, setTimeFilter] = useState<"month" | "quarter">("month");
 
-  // Calculate current month revenue
+  // Calculate date range based on filter
   const now = new Date();
-  const monthStart = startOfMonth(now);
-  const monthEnd = endOfMonth(now);
+  const { rangeStart, rangeEnd, rangeLabel } = useMemo(() => {
+    if (timeFilter === "quarter") {
+      return {
+        rangeStart: startOfQuarter(now),
+        rangeEnd: endOfQuarter(now),
+        rangeLabel: `Q${Math.ceil((now.getMonth() + 1) / 3)} ${format(now, "yyyy")}`,
+      };
+    }
+    return {
+      rangeStart: startOfMonth(now),
+      rangeEnd: endOfMonth(now),
+      rangeLabel: format(now, "MMMM yyyy"),
+    };
+  }, [timeFilter]);
 
   // Confirmed/Paid revenue (cash in bank)
   const confirmedRevenue = entries
     .filter((e) => {
       const entryDate = new Date(e.date);
-      return isWithinInterval(entryDate, { start: monthStart, end: monthEnd }) 
+      return isWithinInterval(entryDate, { start: rangeStart, end: rangeEnd }) 
         && e.payment_status === "paid";
     })
     .reduce((sum, e) => sum + Number(e.amount), 0);
@@ -54,7 +68,7 @@ export function RevenuePulse({ goal = 20000 }: RevenuePulseProps) {
   const pendingRevenue = entries
     .filter((e) => {
       const entryDate = new Date(e.date);
-      return isWithinInterval(entryDate, { start: monthStart, end: monthEnd }) 
+      return isWithinInterval(entryDate, { start: rangeStart, end: rangeEnd }) 
         && (e.payment_status === "sent" || e.payment_status === "overdue");
     })
     .reduce((sum, e) => sum + Number(e.amount), 0);
@@ -63,7 +77,7 @@ export function RevenuePulse({ goal = 20000 }: RevenuePulseProps) {
   const pendingBookingRevenue = bookings
     .filter((b) => {
       const bookingDate = new Date(b.date);
-      return isWithinInterval(bookingDate, { start: monthStart, end: monthEnd })
+      return isWithinInterval(bookingDate, { start: rangeStart, end: rangeEnd })
         && b.status === "pending";
     })
     .length * 500; // Estimated average booking value
@@ -78,9 +92,12 @@ export function RevenuePulse({ goal = 20000 }: RevenuePulseProps) {
  
    const displayRevenue = showNetProfit ? Math.max(0, netProfit) : confirmedRevenue;
    const displayPipeline = showNetProfit ? netPipeline : totalPipeline;
+   // Adjust goal for quarterly view
+   const periodGoal = timeFilter === "quarter" ? config.goal * 3 : config.goal;
+ 
    const displayGoal = showNetProfit 
-     ? config.goal * (1 - config.taxReservePercent / 100) - config.monthlyFixedCosts
-     : config.goal;
+     ? periodGoal * (1 - config.taxReservePercent / 100) - (timeFilter === "quarter" ? config.monthlyFixedCosts * 3 : config.monthlyFixedCosts)
+     : periodGoal;
  
    const confirmedPercentage = Math.min((displayRevenue / Math.max(displayGoal, 1)) * 100, 100);
    const projectedPercentage = Math.min(((displayRevenue + displayPipeline) / Math.max(displayGoal, 1)) * 100, 100);
@@ -108,10 +125,21 @@ export function RevenuePulse({ goal = 20000 }: RevenuePulseProps) {
              </span>
              <RevenuePulseSettings config={config} onSave={handleConfigSave} />
            </div>
-          <span className="font-mono-ledger text-[10px] tabular-nums text-sidebar-foreground/80">
-            {confirmedPercentage.toFixed(0)}%
-          </span>
+          <Select value={timeFilter} onValueChange={(v) => setTimeFilter(v as "month" | "quarter")}>
+            <SelectTrigger className="h-5 w-auto gap-1 border-0 bg-transparent p-0 text-[9px] text-sidebar-foreground/50 hover:text-sidebar-foreground focus:ring-0">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent align="end" className="min-w-[80px]">
+              <SelectItem value="month" className="text-xs">Month</SelectItem>
+              <SelectItem value="quarter" className="text-xs">Quarter</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
+        
+        {/* Range label */}
+        <p className="font-mono-ledger text-[9px] tabular-nums text-sidebar-foreground/40">
+          {rangeLabel}
+        </p>
         
         {/* Stacked Progress Bar */}
         <Tooltip>

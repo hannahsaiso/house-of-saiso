@@ -1,5 +1,6 @@
 import { StudioBooking } from "@/hooks/useStudioBookings";
 import { cn } from "@/lib/utils";
+import { format, parseISO, isBefore, isToday, startOfDay } from "date-fns";
 
 interface StudioEventCardProps {
   booking: StudioBooking;
@@ -13,19 +14,44 @@ const typeColors: Record<string, string> = {
   "gallery-show": "bg-amber-100 text-amber-800 border-amber-200",
   "rental": "bg-green-100 text-green-800 border-green-200",
   "blocked": "bg-red-100 text-red-800 border-red-200",
+  "completed": "bg-gray-100 text-gray-600 border-gray-200",
 };
 
 const statusIndicators: Record<string, string> = {
   pending: "bg-amber-400",
   confirmed: "bg-green-500",
   blocked: "bg-red-500",
+  completed: "bg-gray-400",
+  upcoming: "bg-blue-500",
 };
 
+// Derive temporal status from date
+function getTemporalStatus(booking: StudioBooking): { status: string; isUpcoming: boolean; isPast: boolean } {
+  const bookingDate = parseISO(booking.date);
+  const today = startOfDay(new Date());
+  const isPast = isBefore(bookingDate, today);
+  const isUpcoming = !isPast && booking.status === "confirmed";
+  
+  // Auto-mark past bookings as "completed" visually
+  if (isPast && booking.status !== "blocked") {
+    return { status: "completed", isUpcoming: false, isPast: true };
+  }
+  
+  return { status: booking.status || "pending", isUpcoming, isPast: false };
+}
+
 export function StudioEventCard({ booking, onClick, compact }: StudioEventCardProps) {
-  const colorClass = booking.is_blocked
-    ? typeColors.blocked
-    : typeColors[booking.booking_type] || "bg-muted text-foreground border-border";
-  const statusColor = statusIndicators[booking.status || "pending"];
+  const { status: displayStatus, isUpcoming, isPast } = getTemporalStatus(booking);
+  
+  const colorClass = isPast
+    ? typeColors.completed
+    : booking.is_blocked
+      ? typeColors.blocked
+      : typeColors[booking.booking_type] || "bg-muted text-foreground border-border";
+  
+  const statusColor = isUpcoming 
+    ? statusIndicators.upcoming 
+    : statusIndicators[displayStatus] || statusIndicators.pending;
 
   if (compact) {
     return (
@@ -54,7 +80,8 @@ export function StudioEventCard({ booking, onClick, compact }: StudioEventCardPr
       onClick={onClick}
       className={cn(
         "cursor-pointer rounded-lg border p-3 transition-all hover:shadow-md",
-        colorClass
+        colorClass,
+        isPast && "opacity-60"
       )}
     >
       <div className="flex items-start justify-between">
@@ -72,8 +99,11 @@ export function StudioEventCard({ booking, onClick, compact }: StudioEventCardPr
             <p className="text-xs opacity-70">{booking.client.name}</p>
           )}
         </div>
-        <span className="rounded-full bg-white/50 px-2 py-0.5 text-xs capitalize">
-          {booking.status}
+        <span className={cn(
+          "rounded-full bg-white/50 px-2 py-0.5 text-xs capitalize",
+          isUpcoming && "bg-blue-500 text-white"
+        )}>
+          {isPast ? "Completed" : isUpcoming ? "Upcoming" : displayStatus}
         </span>
       </div>
     </div>
