@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 type AppRole = "admin" | "staff" | "client";
@@ -14,23 +14,9 @@ interface UseUserRoleReturn {
 
 export function useUserRole(): UseUserRoleReturn {
   const queryClient = useQueryClient();
+  const isMounted = useRef(true);
 
-  // Listen for auth state changes and invalidate role cache immediately
-  useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event) => {
-        if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "SIGNED_OUT") {
-          // Invalidate and refetch role immediately on auth changes
-          queryClient.invalidateQueries({ queryKey: ["user-role"] });
-        }
-      }
-    );
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [queryClient]);
-
+  // Query must come before effects to maintain consistent hook order
   const { data: role, isLoading } = useQuery({
     queryKey: ["user-role"],
     queryFn: async () => {
@@ -46,10 +32,35 @@ export function useUserRole(): UseUserRoleReturn {
       if (error || !data) return null;
       return data.role as AppRole;
     },
-    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
-    refetchOnWindowFocus: true, // Refetch when window regains focus
-    retry: 2, // Retry on failure
+    staleTime: 1000 * 60 * 5,
+    refetchOnWindowFocus: true,
+    retry: 2,
   });
+
+  // Listen for auth state changes and invalidate role cache
+  useEffect(() => {
+    isMounted.current = true;
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event) => {
+        if (!isMounted.current) return;
+        
+        if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "SIGNED_OUT") {
+          // Use setTimeout to avoid React state update conflicts
+          setTimeout(() => {
+            if (isMounted.current) {
+              queryClient.invalidateQueries({ queryKey: ["user-role"] });
+            }
+          }, 0);
+        }
+      }
+    );
+
+    return () => {
+      isMounted.current = false;
+      subscription.unsubscribe();
+    };
+  }, [queryClient]);
 
   return {
     role: role ?? null,
