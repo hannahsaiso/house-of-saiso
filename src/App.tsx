@@ -26,6 +26,7 @@ import Inventory from "./pages/Inventory";
 import NotFound from "./pages/NotFound";
 import Inbox from "./pages/Inbox";
 import Drive from "./pages/Drive";
+import JoinTeam from "./pages/JoinTeam";
 
 const queryClient = new QueryClient();
 
@@ -42,6 +43,7 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/calendar/:token" element={<PublicCalendar />} />
             <Route path="/intake/:projectId" element={<ClientIntake />} />
+            <Route path="/join/:token" element={<JoinTeam />} />
             
             {/* Protected routes - require authentication */}
             <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />

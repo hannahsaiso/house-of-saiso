@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
-import { Mail, Clock, X, Loader2 } from "lucide-react";
+import { Mail, Clock, X, Loader2, Copy, Check } from "lucide-react";
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,15 +11,31 @@ import { InviteMemberDialog } from "@/components/settings/team/InviteMemberDialo
 import { TeamUsersTable } from "@/components/settings/team/TeamUsersTable";
 import { useTeamMembers } from "@/hooks/useTeamMembers";
 import { useRoleManagement } from "@/hooks/useRoleManagement";
+import { toast } from "sonner";
 
 export default function TeamManagement() {
   const { isAdmin, isLoading: roleLoading } = useUserRole();
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const { invites, isLoading: invitesLoading, sendInvite, revokeInvite } = useTeamInvites();
   const { teamMembers, isLoading: membersLoading, updateTeamMemberRole } = useTeamMembers();
   const { users, isLoading: usersLoading, setUserRole } = useRoleManagement();
 
   const isLoading = roleLoading || invitesLoading || membersLoading || usersLoading;
+
+  const copyInviteLink = async (token: string, inviteId: string) => {
+    const baseUrl = window.location.origin;
+    const inviteLink = `${baseUrl}/join/${token}`;
+    
+    try {
+      await navigator.clipboard.writeText(inviteLink);
+      setCopiedId(inviteId);
+      toast.success("Invite link copied to clipboard!");
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch (err) {
+      toast.error("Failed to copy link");
+    }
+  };
 
   return (
     <motion.div
@@ -47,7 +64,7 @@ export default function TeamManagement() {
       {!isAdmin ? (
         <Card>
           <CardContent className="py-10 text-center text-muted-foreground">
-            You don’t have access to Team Management.
+            You don't have access to Team Management.
           </CardContent>
         </Card>
       ) : (
@@ -100,6 +117,24 @@ export default function TeamManagement() {
                         <Badge variant="outline" className="capitalize">
                           {invite.invited_role}
                         </Badge>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => copyInviteLink(invite.token, invite.id)}
+                          className="gap-1.5"
+                        >
+                          {copiedId === invite.id ? (
+                            <>
+                              <Check className="h-3.5 w-3.5" />
+                              Copied
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="h-3.5 w-3.5" />
+                              Copy Link
+                            </>
+                          )}
+                        </Button>
                         <Button
                           variant="ghost"
                           size="icon"
