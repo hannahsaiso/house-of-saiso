@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useProjects, Project } from "@/hooks/useProjects";
 import { ProjectWorkspace } from "@/components/projects/ProjectWorkspace";
+import { NewProjectDialog } from "@/components/dashboard/NewProjectDialog";
 import { format } from "date-fns";
 
 const statusColors = {
@@ -62,10 +63,14 @@ const Projects = () => {
             </p>
           </div>
 
-          <Button className="gap-2">
-            <Plus className="h-4 w-4" />
-            New Project
-          </Button>
+          <NewProjectDialog
+            trigger={
+              <Button className="gap-2">
+                <Plus className="h-4 w-4" />
+                New Project
+              </Button>
+            }
+          />
         </div>
 
         {/* Tabs for Active/Archived */}

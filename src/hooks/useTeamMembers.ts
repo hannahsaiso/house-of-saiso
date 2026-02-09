@@ -47,9 +47,38 @@ export function useTeamMembers() {
     },
   });
 
+  const removePendingMember = useMutation({
+    mutationFn: async (email: string) => {
+      // Delete from team_members table
+      const { error: memberError } = await supabase
+        .from("team_members")
+        .delete()
+        .eq("email", email)
+        .eq("status", "pending");
+      if (memberError) throw memberError;
+
+      // Also revoke the invite if it exists
+      const { error: inviteError } = await supabase
+        .from("team_invites")
+        .delete()
+        .eq("email", email)
+        .is("accepted_at", null);
+      if (inviteError) console.warn("Could not delete invite:", inviteError.message);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["team-members"] });
+      queryClient.invalidateQueries({ queryKey: ["team-invites"] });
+      toast.success("Pending member removed");
+    },
+    onError: (error) => {
+      toast.error("Failed to remove member: " + error.message);
+    },
+  });
+
   return {
     teamMembers: teamMembers || [],
     isLoading,
     updateTeamMemberRole,
+    removePendingMember,
   };
 }

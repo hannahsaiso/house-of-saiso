@@ -1,5 +1,7 @@
 import { useMemo } from "react";
+import { Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -38,12 +40,14 @@ export function TeamUsersTable({
   isLoading,
   onChangeActiveUserRole,
   onChangePendingRole,
+  onRemovePendingMember,
 }: {
   users: UserRow[];
   pending: TeamMember[];
   isLoading: boolean;
   onChangeActiveUserRole: (payload: { userId: string; role: AppRole }) => void;
   onChangePendingRole: (payload: { email: string; role: "admin" | "staff" }) => void;
+  onRemovePendingMember?: (email: string) => void;
 }) {
   const rows: Row[] = useMemo(() => {
     const activeRows: Row[] = users.map((u) => ({
@@ -74,6 +78,12 @@ export function TeamUsersTable({
 
     return [...activeRows, ...dedupedPending];
   }, [users, pending]);
+
+  const handleRemove = (email: string) => {
+    if (confirm(`Remove pending invitation for ${email}?`)) {
+      onRemovePendingMember?.(email);
+    }
+  };
 
   return (
     <Card>
@@ -132,18 +142,30 @@ export function TeamUsersTable({
                       </SelectContent>
                     </Select>
                   ) : (
-                    <Select
-                      value={row.role}
-                      onValueChange={(v) => onChangePendingRole({ email: row.email, role: v as "admin" | "staff" })}
-                    >
-                      <SelectTrigger className="w-[140px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="staff">Staff</SelectItem>
-                        <SelectItem value="admin">Admin</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <>
+                      <Select
+                        value={row.role}
+                        onValueChange={(v) => onChangePendingRole({ email: row.email, role: v as "admin" | "staff" })}
+                      >
+                        <SelectTrigger className="w-[140px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="staff">Staff</SelectItem>
+                          <SelectItem value="admin">Admin</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {onRemovePendingMember && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                          onClick={() => handleRemove(row.email)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
