@@ -6,69 +6,42 @@ import { QuickActions } from "@/components/dashboard/QuickActions";
 import { OnboardingQueue } from "@/components/dashboard/OnboardingQueue";
 import { PendingSignaturesWidget } from "@/components/dashboard/PendingSignaturesWidget";
 import { StrategicInsightsDrawer } from "@/components/insights/StrategicInsightsDrawer";
+import { NewProjectDialog } from "@/components/dashboard/NewProjectDialog";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useAuth } from "@/hooks/useAuth";
 import { useStrategicInsights } from "@/hooks/useStrategicInsights";
+import { useProjects } from "@/hooks/useProjects";
+import { useStudioBookings } from "@/hooks/useStudioBookings";
 import { motion } from "framer-motion";
-
-// Mock data - will be replaced with Supabase queries
-const mockProjects = [
-  {
-    id: "1",
-    title: "Brand Refresh Campaign",
-    client: "Lumina Beauty",
-    status: "active" as const,
-    taskCount: 12,
-    dueDate: "Jan 15",
-  },
-  {
-    id: "2",
-    title: "Social Media Strategy",
-    client: "Terra Wellness",
-    status: "review" as const,
-    taskCount: 8,
-    dueDate: "Jan 20",
-  },
-  {
-    id: "3",
-    title: "E-commerce Launch",
-    client: "Artisan Collective",
-    status: "active" as const,
-    taskCount: 24,
-    dueDate: "Feb 1",
-  },
-];
-
-const mockBookings = [
-  {
-    id: "1",
-    date: "2025-01-10",
-    time: "10:00 AM - 2:00 PM",
-    type: "Product Photography",
-    clientName: "Lumina Beauty",
-  },
-  {
-    id: "2",
-    date: "2025-01-12",
-    time: "9:00 AM - 5:00 PM",
-    type: "Full Day Rental",
-    clientName: "Fashion Forward",
-  },
-  {
-    id: "3",
-    date: "2025-01-15",
-    time: "All Day",
-    type: "Equipment Maintenance",
-    isBlocked: true,
-  },
-];
+import { useNavigate } from "react-router-dom";
+import { format } from "date-fns";
+import { Plus, Calendar } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
 const Index = () => {
   const { role, isAdminOrStaff, isLoading: roleLoading } = useUserRole();
   const { user } = useAuth();
   const { insights } = useStrategicInsights();
+  const { activeProjects, isLoading: projectsLoading } = useProjects();
+  const { bookings, isLoading: bookingsLoading } = useStudioBookings();
+  const navigate = useNavigate();
   
   const userName = user?.user_metadata?.full_name || user?.email?.split("@")[0];
+
+  // Get upcoming bookings (next 3 where date >= today)
+  const today = new Date().toISOString().split("T")[0];
+  const upcomingBookings = bookings
+    .filter((b) => b.date >= today && b.status !== "cancelled")
+    .sort((a, b) => a.date.localeCompare(b.date) || a.start_time.localeCompare(b.start_time))
+    .slice(0, 3);
+
+  // Get top 3 active projects
+  const displayProjects = activeProjects.slice(0, 3);
+
+  const handleProjectClick = (projectId: string) => {
+    navigate(`/projects?id=${projectId}`);
+  };
 
   return (
     <DashboardLayout>
@@ -102,23 +75,61 @@ const Index = () => {
               <h2 className="font-heading text-xl font-semibold">
                 Active Projects
               </h2>
-              <button className="text-xs font-medium uppercase tracking-editorial text-muted-foreground transition-colors hover:text-foreground">
-                View All
-              </button>
-            </div>
-            <div className="space-y-4">
-              {mockProjects.map((project, index) => (
-                <ProjectCard
-                  key={project.id}
-                  title={project.title}
-                  client={project.client}
-                  status={project.status}
-                  taskCount={project.taskCount}
-                  dueDate={project.dueDate}
-                  index={index}
+              <div className="flex items-center gap-2">
+                <NewProjectDialog
+                  trigger={
+                    <Button variant="ghost" size="sm" className="gap-1 text-xs">
+                      <Plus className="h-3.5 w-3.5" />
+                      New
+                    </Button>
+                  }
                 />
-              ))}
+                <button 
+                  className="text-xs font-medium uppercase tracking-editorial text-muted-foreground transition-colors hover:text-foreground"
+                  onClick={() => navigate("/projects")}
+                >
+                  View All
+                </button>
+              </div>
             </div>
+            
+            {projectsLoading ? (
+              <div className="space-y-4">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-24 animate-pulse rounded-lg bg-muted" />
+                ))}
+              </div>
+            ) : displayProjects.length === 0 ? (
+              <Card className="border-dashed">
+                <CardContent className="flex flex-col items-center justify-center py-8 text-center">
+                  <p className="text-sm text-muted-foreground">No active projects</p>
+                  <NewProjectDialog
+                    trigger={
+                      <Button variant="outline" size="sm" className="mt-3 gap-1">
+                        <Plus className="h-3.5 w-3.5" />
+                        Create Project
+                      </Button>
+                    }
+                  />
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-4">
+                {displayProjects.map((project, index) => (
+                  <ProjectCard
+                    key={project.id}
+                    id={project.id}
+                    title={project.title}
+                    client={project.client?.name || "No Client"}
+                    status={project.status as "active" | "review" | "completed" | "on_hold"}
+                    taskCount={0}
+                    dueDate={project.due_date ? format(new Date(project.due_date), "MMM d") : undefined}
+                    index={index}
+                    onClick={() => handleProjectClick(project.id)}
+                  />
+                ))}
+              </div>
+            )}
           </motion.section>
 
           {/* Studio Bookings Stream */}
@@ -131,23 +142,50 @@ const Index = () => {
               <h2 className="font-heading text-xl font-semibold">
                 Upcoming Bookings
               </h2>
-              <button className="text-xs font-medium uppercase tracking-editorial text-muted-foreground transition-colors hover:text-foreground">
+              <button 
+                className="text-xs font-medium uppercase tracking-editorial text-muted-foreground transition-colors hover:text-foreground"
+                onClick={() => navigate("/studio")}
+              >
                 View Calendar
               </button>
             </div>
-            <div className="space-y-4">
-              {mockBookings.map((booking, index) => (
-                <StudioBookingCard
-                  key={booking.id}
-                  date={booking.date}
-                  time={booking.time}
-                  type={booking.type}
-                  clientName={booking.clientName}
-                  isBlocked={booking.isBlocked}
-                  index={index}
-                />
-              ))}
-            </div>
+            
+            {bookingsLoading ? (
+              <div className="space-y-4">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-20 animate-pulse rounded-lg bg-muted" />
+                ))}
+              </div>
+            ) : upcomingBookings.length === 0 ? (
+              <Card className="border-dashed">
+                <CardContent className="flex flex-col items-center justify-center py-8 text-center">
+                  <Calendar className="mb-2 h-8 w-8 text-muted-foreground/50" />
+                  <p className="text-sm text-muted-foreground">No upcoming shoots</p>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="mt-3"
+                    onClick={() => navigate("/studio")}
+                  >
+                    Book Studio
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-4">
+                {upcomingBookings.map((booking, index) => (
+                  <StudioBookingCard
+                    key={booking.id}
+                    date={booking.date}
+                    time={`${booking.start_time.slice(0, 5)} - ${booking.end_time.slice(0, 5)}`}
+                    type={booking.event_name || booking.booking_type}
+                    clientName={booking.client?.name}
+                    isBlocked={booking.is_blocked}
+                    index={index}
+                  />
+                ))}
+              </div>
+            )}
           </motion.section>
         </div>
       </div>
