@@ -12,11 +12,11 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { CalendarFilters } from "@/components/calendar/CalendarFilters";
 import { CalendarTaskDialog } from "@/components/calendar/CalendarTaskDialog";
+import { DailyBrief } from "@/components/calendar/DailyBrief";
 import { useCalendarFilters } from "@/hooks/useCalendarFilters";
 import { useCalendarTasks, CalendarTask } from "@/hooks/useCalendarTasks";
 import { useStudioBookings } from "@/hooks/useStudioBookings";
@@ -108,7 +108,8 @@ const useGoogleCalendarEvents = (currentMonth: Date, enabled: boolean) => {
 export default function UnifiedCalendar() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [taskDialogOpen, setTaskDialogOpen] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [dialogDate, setDialogDate] = useState<Date | null>(null);
   const [selectedTask, setSelectedTask] = useState<CalendarTask | null>(null);
 
   // Filter state with localStorage persistence
@@ -151,6 +152,19 @@ export default function UnifiedCalendar() {
     refetch: refetchGoogle,
     isFetching: googleFetching,
   } = useGoogleCalendarEvents(currentMonth, !!hasGoogleConnection);
+
+  // Google events for Daily Brief (filtered for selected date)
+  const dailyBriefGoogleEvents = useMemo(() => {
+    if (!googleEvents) return [];
+    return googleEvents
+      .filter((e) => e.date && isSameDay(parseISO(e.date), selectedDate))
+      .map((e) => ({
+        id: e.id,
+        title: e.title,
+        startTime: e.startTime,
+        endTime: e.endTime,
+      }));
+  }, [googleEvents, selectedDate]);
 
   // Combine all events with filtering
   const allEvents = useMemo<CalendarEvent[]>(() => {
@@ -230,6 +244,10 @@ export default function UnifiedCalendar() {
 
   const handleDayClick = (day: Date) => {
     setSelectedDate(day);
+  };
+
+  const handleDayDoubleClick = (day: Date) => {
+    setDialogDate(day);
     setSelectedTask(null);
     setTaskDialogOpen(true);
   };
@@ -238,220 +256,249 @@ export default function UnifiedCalendar() {
     e.stopPropagation();
     if (event.type === "task" && event.rawTask) {
       setSelectedTask(event.rawTask);
-      setSelectedDate(null);
+      setDialogDate(null);
       setTaskDialogOpen(true);
     }
   };
 
+  const handleTaskClickFromBrief = (task: CalendarTask) => {
+    setSelectedTask(task);
+    setDialogDate(null);
+    setTaskDialogOpen(true);
+  };
+
   return (
     <DashboardLayout>
-      <div className="mx-auto max-w-6xl space-y-6">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          <div className="mb-2 flex items-center gap-2">
-            <span className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-              Command Center
-            </span>
-          </div>
-          <h1 className="font-heading text-4xl font-semibold tracking-tight">
-            Horizon Calendar
-          </h1>
-          <p className="mt-2 text-muted-foreground">
-            All your events in one place. Click any date to add a task.
-          </p>
-        </motion.div>
+      <div className="flex gap-6 h-[calc(100vh-8rem)]">
+        {/* Main Calendar Area */}
+        <div className="flex-1 min-w-0 space-y-4 overflow-y-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <div className="mb-2 flex items-center gap-2">
+              <span className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
+                Command Center
+              </span>
+            </div>
+            <h1 className="font-heading text-4xl font-semibold tracking-tight">
+              Horizon Calendar
+            </h1>
+            <p className="mt-2 text-muted-foreground">
+              Click to select a date. Double-click to add a task.
+            </p>
+          </motion.div>
 
-        {/* Filter Bar */}
-        <CalendarFilters
-          filters={filters}
-          onFiltersChange={setFilters}
-          hasGoogleConnection={!!hasGoogleConnection}
-        />
+          {/* Filter Bar */}
+          <CalendarFilters
+            filters={filters}
+            onFiltersChange={setFilters}
+            hasGoogleConnection={!!hasGoogleConnection}
+          />
 
-        {/* Calendar Header */}
-        <div className="flex items-center justify-between">
-          <h2 className="font-heading text-2xl font-semibold">
-            {format(currentMonth, "MMMM yyyy")}
-          </h2>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="default"
-              size="sm"
-              onClick={() => {
-                setSelectedDate(new Date());
-                setSelectedTask(null);
-                setTaskDialogOpen(true);
-              }}
-              className="gap-1.5"
-            >
-              <Plus className="h-4 w-4" />
-              Add Task
-            </Button>
-            {hasGoogleConnection && (
+          {/* Calendar Header */}
+          <div className="flex items-center justify-between">
+            <h2 className="font-heading text-2xl font-semibold">
+              {format(currentMonth, "MMMM yyyy")}
+            </h2>
+            <div className="flex items-center gap-2">
               <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => refetchGoogle()}
-                disabled={googleFetching}
-                title="Refresh Google Calendar"
+                variant="default"
+                size="sm"
+                onClick={() => {
+                  setDialogDate(selectedDate);
+                  setSelectedTask(null);
+                  setTaskDialogOpen(true);
+                }}
+                className="gap-1.5"
               >
-                <RefreshCw className={`h-4 w-4 ${googleFetching ? "animate-spin" : ""}`} />
+                <Plus className="h-4 w-4" />
+                Add Task
               </Button>
-            )}
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => setCurrentMonth((d) => subMonths(d, 1))}
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentMonth(new Date())}
-            >
-              Today
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => setCurrentMonth((d) => addMonths(d, 1))}
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
+              {hasGoogleConnection && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => refetchGoogle()}
+                  disabled={googleFetching}
+                  title="Refresh Google Calendar"
+                >
+                  <RefreshCw className={`h-4 w-4 ${googleFetching ? "animate-spin" : ""}`} />
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setCurrentMonth((d) => subMonths(d, 1))}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentMonth(new Date())}
+              >
+                Today
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setCurrentMonth((d) => addMonths(d, 1))}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
-        </div>
 
-        {isLoading ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </div>
-        ) : (
-          <Card>
-            <CardContent className="p-0">
-              {/* Weekday Headers */}
-              <div className="grid grid-cols-7 border-b">
-                {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => (
-                  <div
-                    key={day}
-                    className="py-3 text-center text-xs font-medium uppercase tracking-wider text-muted-foreground"
-                  >
-                    {day}
-                  </div>
-                ))}
-              </div>
-
-              {/* Calendar Grid */}
-              <div className="grid grid-cols-7">
-                {days.map((day, index) => {
-                  const dayEvents = getEventsForDay(day);
-                  const isCurrentMonth = isSameMonth(day, currentMonth);
-                  const isToday = isSameDay(day, new Date());
-
-                  return (
+          {isLoading ? (
+            <div className="flex items-center justify-center py-20">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <Card>
+              <CardContent className="p-0">
+                {/* Weekday Headers */}
+                <div className="grid grid-cols-7 border-b">
+                  {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => (
                     <div
-                      key={day.toISOString()}
-                      onClick={() => handleDayClick(day)}
-                      className={`min-h-[120px] border-b border-r p-2 cursor-pointer transition-colors hover:bg-muted/50 ${
-                        !isCurrentMonth ? "bg-muted/30" : ""
-                      } ${index % 7 === 6 ? "border-r-0" : ""}`}
+                      key={day}
+                      className="py-3 text-center text-xs font-medium uppercase tracking-wider text-muted-foreground"
                     >
+                      {day}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Calendar Grid */}
+                <div className="grid grid-cols-7">
+                  {days.map((day, index) => {
+                    const dayEvents = getEventsForDay(day);
+                    const isCurrentMonth = isSameMonth(day, currentMonth);
+                    const isToday = isSameDay(day, new Date());
+                    const isSelected = isSameDay(day, selectedDate);
+
+                    return (
                       <div
-                        className={`mb-1 text-sm ${
-                          isToday
-                            ? "flex h-7 w-7 items-center justify-center rounded-full bg-primary font-semibold text-primary-foreground"
-                            : isCurrentMonth
-                            ? "text-foreground"
-                            : "text-muted-foreground"
+                        key={day.toISOString()}
+                        onClick={() => handleDayClick(day)}
+                        onDoubleClick={() => handleDayDoubleClick(day)}
+                        className={`min-h-[100px] border-b border-r p-2 cursor-pointer transition-colors ${
+                          !isCurrentMonth ? "bg-muted/30" : ""
+                        } ${isSelected ? "bg-primary/5 ring-1 ring-inset ring-primary/20" : "hover:bg-muted/50"} ${
+                          index % 7 === 6 ? "border-r-0" : ""
                         }`}
                       >
-                        {format(day, "d")}
-                      </div>
-                      <div className="space-y-1">
-                        {dayEvents.slice(0, 3).map((event) => (
-                          <Tooltip key={event.id}>
-                            <TooltipTrigger asChild>
-                              <div
-                                onClick={(e) => handleEventClick(event, e)}
-                                className={`truncate rounded px-1.5 py-0.5 text-[10px] leading-tight ${
-                                  event.type === "task" ? "cursor-pointer hover:ring-1 hover:ring-primary/50" : "cursor-default"
-                                }`}
-                                style={{
-                                  backgroundColor: `${event.color}15`,
-                                  color: event.color,
-                                }}
-                              >
+                        <div
+                          className={`mb-1 text-sm ${
+                            isToday
+                              ? "flex h-7 w-7 items-center justify-center rounded-full bg-primary font-semibold text-primary-foreground"
+                              : isCurrentMonth
+                              ? "text-foreground"
+                              : "text-muted-foreground"
+                          }`}
+                        >
+                          {format(day, "d")}
+                        </div>
+                        <div className="space-y-0.5">
+                          {dayEvents.slice(0, 3).map((event) => (
+                            <Tooltip key={event.id}>
+                              <TooltipTrigger asChild>
+                                <div
+                                  onClick={(e) => handleEventClick(event, e)}
+                                  className={`truncate rounded px-1 py-0.5 text-[9px] leading-tight ${
+                                    event.type === "task" ? "cursor-pointer hover:ring-1 hover:ring-primary/50" : "cursor-default"
+                                  }`}
+                                  style={{
+                                    backgroundColor: `${event.color}15`,
+                                    color: event.color,
+                                  }}
+                                >
+                                  {event.type === "google" && (
+                                    <span className="mr-0.5 opacity-60">G</span>
+                                  )}
+                                  {event.type === "task" && (
+                                    <CheckSquare className="inline h-2 w-2 mr-0.5" />
+                                  )}
+                                  {event.gearBlocked && event.gearBlocked.length > 0 && (
+                                    <Package className="inline h-2 w-2 mr-0.5 text-amber-500" />
+                                  )}
+                                  {event.startTime && (
+                                    <span className="font-medium">
+                                      {event.startTime.substring(0, 5)}{" "}
+                                    </span>
+                                  )}
+                                  {event.title}
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent side="right" className="max-w-xs">
+                                <p className="font-medium">{event.title}</p>
                                 {event.type === "google" && (
-                                  <span className="mr-1 opacity-60">G</span>
+                                  <p className="text-xs text-muted-foreground">Google Calendar</p>
                                 )}
                                 {event.type === "task" && (
-                                  <CheckSquare className="inline h-2.5 w-2.5 mr-0.5" />
+                                  <p className="text-xs text-muted-foreground">
+                                    Click to edit task
+                                  </p>
                                 )}
                                 {event.gearBlocked && event.gearBlocked.length > 0 && (
-                                  <Package className="inline h-3 w-3 mr-0.5 text-amber-500" />
+                                  <div className="mt-1 text-xs">
+                                    <span className="text-amber-500 font-medium">Gear Blocked:</span>
+                                    <ul className="list-disc list-inside">
+                                      {event.gearBlocked.map((gear, i) => (
+                                        <li key={i}>{gear}</li>
+                                      ))}
+                                    </ul>
+                                  </div>
                                 )}
-                                {event.startTime && (
-                                  <span className="font-medium">
-                                    {event.startTime.substring(0, 5)}{" "}
-                                  </span>
-                                )}
-                                {event.title}
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent side="right" className="max-w-xs">
-                              <p className="font-medium">{event.title}</p>
-                              {event.type === "google" && (
-                                <p className="text-xs text-muted-foreground">Google Calendar</p>
-                              )}
-                              {event.type === "task" && (
-                                <p className="text-xs text-muted-foreground">
-                                  Click to edit task
-                                </p>
-                              )}
-                              {event.gearBlocked && event.gearBlocked.length > 0 && (
-                                <div className="mt-1 text-xs">
-                                  <span className="text-amber-500 font-medium">Gear Blocked:</span>
-                                  <ul className="list-disc list-inside">
-                                    {event.gearBlocked.map((gear, i) => (
-                                      <li key={i}>{gear}</li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              )}
-                            </TooltipContent>
-                          </Tooltip>
-                        ))}
-                        {dayEvents.length > 3 && (
-                          <p className="text-[10px] text-muted-foreground">
-                            +{dayEvents.length - 3} more
-                          </p>
-                        )}
+                              </TooltipContent>
+                            </Tooltip>
+                          ))}
+                          {dayEvents.length > 3 && (
+                            <p className="text-[9px] text-muted-foreground">
+                              +{dayEvents.length - 3} more
+                            </p>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        )}
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
-        {/* Privacy Notice */}
-        {hasGoogleConnection && filters.google && (
-          <p className="text-center text-xs text-muted-foreground">
-            Google Calendar events are streamed directly to your browser and are not stored in our database.
-          </p>
-        )}
+          {/* Privacy Notice */}
+          {hasGoogleConnection && filters.google && (
+            <p className="text-center text-xs text-muted-foreground">
+              Google Calendar events are streamed directly to your browser and are not stored in our database.
+            </p>
+          )}
+        </div>
 
-        {/* Task Dialog */}
-        <CalendarTaskDialog
-          open={taskDialogOpen}
-          onOpenChange={setTaskDialogOpen}
-          task={selectedTask}
-          defaultDate={selectedDate}
-        />
+        {/* Daily Brief Sidebar */}
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.1 }}
+          className="w-72 flex-shrink-0 rounded-lg border border-border/50 bg-card overflow-hidden"
+        >
+          <DailyBrief
+            selectedDate={selectedDate}
+            studioBookings={bookings}
+            googleEvents={dailyBriefGoogleEvents}
+            tasks={calendarTasks}
+            onTaskClick={handleTaskClickFromBrief}
+          />
+        </motion.div>
       </div>
+
+      {/* Task Dialog */}
+      <CalendarTaskDialog
+        open={taskDialogOpen}
+        onOpenChange={setTaskDialogOpen}
+        task={selectedTask}
+        defaultDate={dialogDate}
+      />
     </DashboardLayout>
   );
 }
