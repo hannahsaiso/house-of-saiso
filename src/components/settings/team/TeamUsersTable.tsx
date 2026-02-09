@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Trash2 } from "lucide-react";
+import { Trash2, KeyRound, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,6 +11,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { RemoveMemberDialog } from "./RemoveMemberDialog";
 import type { UserRow, AppRole } from "@/hooks/useRoleManagement";
 import type { TeamMember } from "@/hooks/useTeamMembers";
 
@@ -41,6 +48,10 @@ export function TeamUsersTable({
   onChangeActiveUserRole,
   onChangePendingRole,
   onRemovePendingMember,
+  onResetPassword,
+  onRemoveMember,
+  isResettingPassword,
+  isRemovingMember,
 }: {
   users: UserRow[];
   pending: TeamMember[];
@@ -48,6 +59,10 @@ export function TeamUsersTable({
   onChangeActiveUserRole: (payload: { userId: string; role: AppRole }) => void;
   onChangePendingRole: (payload: { email: string; role: "admin" | "staff" }) => void;
   onRemovePendingMember?: (email: string) => void;
+  onResetPassword?: (email: string) => void;
+  onRemoveMember?: (payload: { userId?: string; email: string }) => void;
+  isResettingPassword?: boolean;
+  isRemovingMember?: boolean;
 }) {
   const rows: Row[] = useMemo(() => {
     const activeRows: Row[] = users.map((u) => ({
@@ -128,26 +143,60 @@ export function TeamUsersTable({
 
                   {/* Admin-only control should be enforced by page-level gating; this is UI only. */}
                   {row.kind === "active" ? (
-                    <Select
-                      value={row.role ?? "client"}
-                      onValueChange={(v) => onChangeActiveUserRole({ userId: row.userId, role: v as AppRole })}
-                    >
-                      <SelectTrigger className="w-[140px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="staff">Staff</SelectItem>
-                        <SelectItem value="admin">Admin</SelectItem>
-                        <SelectItem value="client">Client</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <>
+                      <Select
+                        value={row.role ?? "client"}
+                        onValueChange={(v) => onChangeActiveUserRole({ userId: row.userId, role: v as AppRole })}
+                      >
+                        <SelectTrigger className="w-[120px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="staff">Staff</SelectItem>
+                          <SelectItem value="admin">Admin</SelectItem>
+                          <SelectItem value="client">Client</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      
+                      {/* Admin Actions for Active Users */}
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                              onClick={() => onResetPassword?.(row.email)}
+                              disabled={isResettingPassword}
+                            >
+                              {isResettingPassword ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <KeyRound className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Reset Password</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      
+                      {onRemoveMember && (
+                        <RemoveMemberDialog
+                          email={row.email}
+                          name={row.name}
+                          userId={row.userId}
+                          isRemoving={isRemovingMember || false}
+                          onConfirm={() => onRemoveMember({ userId: row.userId, email: row.email })}
+                        />
+                      )}
+                    </>
                   ) : (
                     <>
                       <Select
                         value={row.role}
                         onValueChange={(v) => onChangePendingRole({ email: row.email, role: v as "admin" | "staff" })}
                       >
-                        <SelectTrigger className="w-[140px]">
+                        <SelectTrigger className="w-[120px]">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>

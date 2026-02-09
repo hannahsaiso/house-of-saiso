@@ -11,6 +11,7 @@ import { InviteMemberDialog } from "@/components/settings/team/InviteMemberDialo
 import { TeamUsersTable } from "@/components/settings/team/TeamUsersTable";
 import { useTeamMembers } from "@/hooks/useTeamMembers";
 import { useRoleManagement } from "@/hooks/useRoleManagement";
+import { useAdminActions } from "@/hooks/useAdminActions";
 import { toast } from "sonner";
 
 export default function TeamManagement() {
@@ -20,6 +21,7 @@ export default function TeamManagement() {
   const { invites, isLoading: invitesLoading, sendInvite, revokeInvite } = useTeamInvites();
   const { teamMembers, isLoading: membersLoading, updateTeamMemberRole, removePendingMember } = useTeamMembers();
   const { users, isLoading: usersLoading, setUserRole } = useRoleManagement();
+  const { resetPassword, removeMember } = useAdminActions();
 
   const isLoading = roleLoading || invitesLoading || membersLoading || usersLoading;
 
@@ -77,6 +79,10 @@ export default function TeamManagement() {
             onChangeActiveUserRole={({ userId, role }) => setUserRole.mutate({ userId, role })}
             onChangePendingRole={({ email, role }) => updateTeamMemberRole.mutate({ email, role })}
             onRemovePendingMember={(email) => removePendingMember.mutate(email)}
+            onResetPassword={(email) => resetPassword.mutate(email)}
+            onRemoveMember={({ userId, email }) => removeMember.mutate({ userId, email })}
+            isResettingPassword={resetPassword.isPending}
+            isRemovingMember={removeMember.isPending}
           />
 
           {/* Pending Invites (audit trail) */}
