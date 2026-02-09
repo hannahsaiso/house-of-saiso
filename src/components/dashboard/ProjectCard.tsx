@@ -4,21 +4,25 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 interface ProjectCardProps {
+  id: string;
   title: string;
   client: string;
-  status: "active" | "review" | "completed";
+  status: "active" | "review" | "completed" | "on_hold";
   taskCount: number;
   dueDate?: string;
   index?: number;
+  onClick?: () => void;
 }
 
 export function ProjectCard({
+  id,
   title,
   client,
   status,
   taskCount,
   dueDate,
   index = 0,
+  onClick,
 }: ProjectCardProps) {
   const statusConfig = {
     active: {
@@ -33,9 +37,13 @@ export function ProjectCard({
       label: "Completed",
       className: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
     },
+    on_hold: {
+      label: "On Hold",
+      className: "bg-muted text-muted-foreground border-muted",
+    },
   };
 
-  const statusInfo = statusConfig[status];
+  const statusInfo = statusConfig[status] || statusConfig.active;
 
   return (
     <motion.div
@@ -43,7 +51,10 @@ export function ProjectCard({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: index * 0.1 }}
     >
-      <Card className="group cursor-pointer border-border/50 transition-all duration-300 hover:border-primary/30 hover:shadow-lg">
+      <Card 
+        className="group cursor-pointer border-border/50 transition-all duration-300 hover:border-primary/30 hover:shadow-lg"
+        onClick={onClick}
+      >
         <CardHeader className="pb-2">
           <div className="flex items-start justify-between">
             <div>
