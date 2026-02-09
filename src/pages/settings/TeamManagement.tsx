@@ -18,7 +18,7 @@ export default function TeamManagement() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const { invites, isLoading: invitesLoading, sendInvite, revokeInvite } = useTeamInvites();
-  const { teamMembers, isLoading: membersLoading, updateTeamMemberRole } = useTeamMembers();
+  const { teamMembers, isLoading: membersLoading, updateTeamMemberRole, removePendingMember } = useTeamMembers();
   const { users, isLoading: usersLoading, setUserRole } = useRoleManagement();
 
   const isLoading = roleLoading || invitesLoading || membersLoading || usersLoading;
@@ -76,6 +76,7 @@ export default function TeamManagement() {
             isLoading={isLoading}
             onChangeActiveUserRole={({ userId, role }) => setUserRole.mutate({ userId, role })}
             onChangePendingRole={({ email, role }) => updateTeamMemberRole.mutate({ email, role })}
+            onRemovePendingMember={(email) => removePendingMember.mutate(email)}
           />
 
           {/* Pending Invites (audit trail) */}
