@@ -3,20 +3,25 @@ import { motion } from "framer-motion";
 import {
   ChevronLeft,
   ChevronRight,
-  Calendar as CalendarIcon,
   Circle,
   Loader2,
   RefreshCw,
-   Package,
+  Package,
+  Plus,
+  CheckSquare,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
- import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { CalendarFilters } from "@/components/calendar/CalendarFilters";
+import { CalendarTaskDialog } from "@/components/calendar/CalendarTaskDialog";
+import { useCalendarFilters } from "@/hooks/useCalendarFilters";
+import { useCalendarTasks, CalendarTask } from "@/hooks/useCalendarTasks";
 import { useStudioBookings } from "@/hooks/useStudioBookings";
 import { useProjects } from "@/hooks/useProjects";
- import { useInventoryReservations } from "@/hooks/useInventory";
+import { useInventoryReservations } from "@/hooks/useInventory";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -40,12 +45,12 @@ interface CalendarEvent {
   startTime?: string;
   endTime?: string;
   type: "studio" | "project" | "task" | "google";
-   gearBlocked?: string[];
+  gearBlocked?: string[];
   color: string;
+  rawTask?: CalendarTask;
 }
 
 // Google Calendar events are fetched client-side only (privacy-first approach)
-// They are NOT stored in Supabase - streaming fetch directly to user's browser
 const useGoogleCalendarEvents = (currentMonth: Date, enabled: boolean) => {
   return useQuery({
     queryKey: ["google-calendar-streaming", currentMonth.toISOString()],
@@ -53,7 +58,6 @@ const useGoogleCalendarEvents = (currentMonth: Date, enabled: boolean) => {
       const { data: session } = await supabase.auth.getSession();
       if (!session.session) return [];
 
-      // Check if user has Google connected (just the token existence, not the token itself)
       const { data: tokenRecord } = await supabase
         .from("google_oauth_tokens")
         .select("id")
@@ -62,8 +66,6 @@ const useGoogleCalendarEvents = (currentMonth: Date, enabled: boolean) => {
 
       if (!tokenRecord) return [];
 
-      // Client-side streaming fetch from Google Calendar API via gateway
-      // Events are fetched on-the-fly and never stored in our database
       const monthStart = startOfMonth(currentMonth);
       const monthEnd = endOfMonth(currentMonth);
 
@@ -98,23 +100,32 @@ const useGoogleCalendarEvents = (currentMonth: Date, enabled: boolean) => {
       }
     },
     enabled,
-    staleTime: 1000 * 60 * 5, // Cache for 5 minutes client-side only
+    staleTime: 1000 * 60 * 5,
     gcTime: 1000 * 60 * 10,
   });
 };
 
 export default function UnifiedCalendar() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [taskDialogOpen, setTaskDialogOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedTask, setSelectedTask] = useState<CalendarTask | null>(null);
+
+  // Filter state with localStorage persistence
+  const { filters, setFilters } = useCalendarFilters();
+
+  // Data hooks
   const { bookings, isLoading: bookingsLoading } = useStudioBookings(currentMonth);
   const { projects, isLoading: projectsLoading } = useProjects();
- 
-   // Fetch gear reservations for the month  
-   const gearMonthStart = startOfMonth(currentMonth);
-   const gearMonthEnd = endOfMonth(currentMonth);
-   const { reservations: gearReservations } = useInventoryReservations(undefined, {
-     from: format(gearMonthStart, "yyyy-MM-dd"),
-     to: format(gearMonthEnd, "yyyy-MM-dd"),
-   });
+  const { tasks: calendarTasks, isLoading: calendarTasksLoading } = useCalendarTasks();
+
+  // Gear reservations for the month
+  const gearMonthStart = startOfMonth(currentMonth);
+  const gearMonthEnd = endOfMonth(currentMonth);
+  const { reservations: gearReservations } = useInventoryReservations(undefined, {
+    from: format(gearMonthStart, "yyyy-MM-dd"),
+    to: format(gearMonthEnd, "yyyy-MM-dd"),
+  });
 
   // Check if user has Google connected
   const { data: hasGoogleConnection } = useQuery({
@@ -133,88 +144,78 @@ export default function UnifiedCalendar() {
     },
   });
 
-  // Fetch user tasks with due dates
-  const { data: tasks, isLoading: tasksLoading } = useQuery({
-    queryKey: ["user-tasks-calendar"],
-    queryFn: async () => {
-      const { data: user } = await supabase.auth.getUser();
-      if (!user.user) return [];
-
-      const { data, error } = await supabase
-        .from("tasks")
-        .select("id, title, due_date, status")
-        .eq("assigned_to", user.user.id)
-        .not("due_date", "is", null)
-        .neq("status", "done");
-
-      if (error) throw error;
-      return data || [];
-    },
-  });
-
-  // Privacy-first: Stream Google Calendar events directly to browser (no database storage)
-  const { 
-    data: googleEvents, 
+  // Privacy-first: Stream Google Calendar events directly to browser
+  const {
+    data: googleEvents,
     isLoading: googleLoading,
     refetch: refetchGoogle,
-    isFetching: googleFetching 
+    isFetching: googleFetching,
   } = useGoogleCalendarEvents(currentMonth, !!hasGoogleConnection);
 
-  // Combine all events
+  // Combine all events with filtering
   const allEvents = useMemo<CalendarEvent[]>(() => {
     const events: CalendarEvent[] = [];
 
-    // Studio bookings - Charcoal
-    bookings.forEach((booking) => {
-      events.push({
-        id: booking.id,
-        title: booking.event_name || booking.booking_type,
-        date: booking.date,
-        startTime: booking.start_time,
-        endTime: booking.end_time,
-        type: "studio",
-        color: "hsl(var(--foreground))",
-         gearBlocked: gearReservations
-           ?.filter((r) => r.booking_id === booking.id)
-           .map((r) => r.inventory?.item_name || "Gear"),
+    // Studio bookings - Charcoal (if filter enabled)
+    if (filters.studio) {
+      bookings.forEach((booking) => {
+        events.push({
+          id: booking.id,
+          title: booking.event_name || booking.booking_type,
+          date: booking.date,
+          startTime: booking.start_time,
+          endTime: booking.end_time,
+          type: "studio",
+          color: "hsl(var(--foreground))",
+          gearBlocked: gearReservations
+            ?.filter((r) => r.booking_id === booking.id)
+            .map((r) => r.inventory?.item_name || "Gear"),
+        });
       });
-    });
+    }
 
-    // Project milestones - Champagne
-    projects?.forEach((project) => {
-      if (project.due_date) {
-        events.push({
-          id: `project-${project.id}`,
-          title: `📁 ${project.title}`,
-          date: project.due_date,
-          type: "project",
-          color: "hsl(45 60% 60%)",
-        });
-      }
-    });
+    // Project milestones - Champagne (if filter enabled)
+    if (filters.projects) {
+      projects?.forEach((project) => {
+        if (project.due_date) {
+          events.push({
+            id: `project-${project.id}`,
+            title: `📁 ${project.title}`,
+            date: project.due_date,
+            type: "project",
+            color: "hsl(45 60% 60%)",
+          });
+        }
+      });
+    }
 
-    // Personal tasks - Primary
-    tasks?.forEach((task) => {
-      if (task.due_date) {
-        events.push({
-          id: `task-${task.id}`,
-          title: `✓ ${task.title}`,
-          date: task.due_date,
-          type: "task",
-          color: "hsl(var(--primary))",
-        });
-      }
-    });
+    // Personal tasks - Primary (if filter enabled)
+    if (filters.tasks) {
+      calendarTasks?.forEach((task) => {
+        if (task.due_date) {
+          events.push({
+            id: `task-${task.id}`,
+            title: `✓ ${task.title}`,
+            date: task.due_date,
+            type: "task",
+            color: "hsl(var(--primary))",
+            rawTask: task,
+          });
+        }
+      });
+    }
 
-    // Google Calendar events - Light Grey (streaming, not stored)
-    googleEvents?.forEach((event: CalendarEvent) => {
-      events.push(event);
-    });
+    // Google Calendar events (if filter enabled)
+    if (filters.google) {
+      googleEvents?.forEach((event: CalendarEvent) => {
+        events.push(event);
+      });
+    }
 
     return events;
-   }, [bookings, projects, tasks, googleEvents, gearReservations]);
+  }, [bookings, projects, calendarTasks, googleEvents, gearReservations, filters]);
 
-  const isLoading = bookingsLoading || projectsLoading || tasksLoading;
+  const isLoading = bookingsLoading || projectsLoading || calendarTasksLoading;
 
   // Calendar grid
   const monthStart = startOfMonth(currentMonth);
@@ -227,6 +228,21 @@ export default function UnifiedCalendar() {
     return allEvents.filter((event) => isSameDay(parseISO(event.date), day));
   };
 
+  const handleDayClick = (day: Date) => {
+    setSelectedDate(day);
+    setSelectedTask(null);
+    setTaskDialogOpen(true);
+  };
+
+  const handleEventClick = (event: CalendarEvent, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (event.type === "task" && event.rawTask) {
+      setSelectedTask(event.rawTask);
+      setSelectedDate(null);
+      setTaskDialogOpen(true);
+    }
+  };
+
   return (
     <DashboardLayout>
       <div className="mx-auto max-w-6xl space-y-6">
@@ -236,41 +252,23 @@ export default function UnifiedCalendar() {
         >
           <div className="mb-2 flex items-center gap-2">
             <span className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-              Unified View
+              Command Center
             </span>
           </div>
           <h1 className="font-heading text-4xl font-semibold tracking-tight">
             Horizon Calendar
           </h1>
           <p className="mt-2 text-muted-foreground">
-            All your events in one place.
+            All your events in one place. Click any date to add a task.
           </p>
         </motion.div>
 
-        {/* Legend */}
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="flex items-center gap-2">
-            <Circle className="h-3 w-3 fill-foreground text-foreground" />
-            <span className="text-xs text-muted-foreground">Studio</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Circle className="h-3 w-3 fill-[hsl(45_60%_60%)] text-[hsl(45_60%_60%)]" />
-            <span className="text-xs text-muted-foreground">Project</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Circle className="h-3 w-3 fill-primary text-primary" />
-            <span className="text-xs text-muted-foreground">Task</span>
-          </div>
-          {hasGoogleConnection && (
-            <div className="flex items-center gap-2">
-              <Circle className="h-3 w-3 fill-muted-foreground text-muted-foreground" />
-              <span className="text-xs text-muted-foreground">Google</span>
-              <Badge variant="outline" className="ml-1 text-[9px] px-1.5 py-0">
-                Streaming
-              </Badge>
-            </div>
-          )}
-        </div>
+        {/* Filter Bar */}
+        <CalendarFilters
+          filters={filters}
+          onFiltersChange={setFilters}
+          hasGoogleConnection={!!hasGoogleConnection}
+        />
 
         {/* Calendar Header */}
         <div className="flex items-center justify-between">
@@ -278,6 +276,19 @@ export default function UnifiedCalendar() {
             {format(currentMonth, "MMMM yyyy")}
           </h2>
           <div className="flex items-center gap-2">
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => {
+                setSelectedDate(new Date());
+                setSelectedTask(null);
+                setTaskDialogOpen(true);
+              }}
+              className="gap-1.5"
+            >
+              <Plus className="h-4 w-4" />
+              Add Task
+            </Button>
             {hasGoogleConnection && (
               <Button
                 variant="ghost"
@@ -342,7 +353,8 @@ export default function UnifiedCalendar() {
                   return (
                     <div
                       key={day.toISOString()}
-                      className={`min-h-[120px] border-b border-r p-2 ${
+                      onClick={() => handleDayClick(day)}
+                      className={`min-h-[120px] border-b border-r p-2 cursor-pointer transition-colors hover:bg-muted/50 ${
                         !isCurrentMonth ? "bg-muted/30" : ""
                       } ${index % 7 === 6 ? "border-r-0" : ""}`}
                     >
@@ -362,7 +374,10 @@ export default function UnifiedCalendar() {
                           <Tooltip key={event.id}>
                             <TooltipTrigger asChild>
                               <div
-                                className="truncate rounded px-1.5 py-0.5 text-[10px] leading-tight cursor-default"
+                                onClick={(e) => handleEventClick(event, e)}
+                                className={`truncate rounded px-1.5 py-0.5 text-[10px] leading-tight ${
+                                  event.type === "task" ? "cursor-pointer hover:ring-1 hover:ring-primary/50" : "cursor-default"
+                                }`}
                                 style={{
                                   backgroundColor: `${event.color}15`,
                                   color: event.color,
@@ -370,6 +385,9 @@ export default function UnifiedCalendar() {
                               >
                                 {event.type === "google" && (
                                   <span className="mr-1 opacity-60">G</span>
+                                )}
+                                {event.type === "task" && (
+                                  <CheckSquare className="inline h-2.5 w-2.5 mr-0.5" />
                                 )}
                                 {event.gearBlocked && event.gearBlocked.length > 0 && (
                                   <Package className="inline h-3 w-3 mr-0.5 text-amber-500" />
@@ -386,6 +404,11 @@ export default function UnifiedCalendar() {
                               <p className="font-medium">{event.title}</p>
                               {event.type === "google" && (
                                 <p className="text-xs text-muted-foreground">Google Calendar</p>
+                              )}
+                              {event.type === "task" && (
+                                <p className="text-xs text-muted-foreground">
+                                  Click to edit task
+                                </p>
                               )}
                               {event.gearBlocked && event.gearBlocked.length > 0 && (
                                 <div className="mt-1 text-xs">
@@ -415,11 +438,19 @@ export default function UnifiedCalendar() {
         )}
 
         {/* Privacy Notice */}
-        {hasGoogleConnection && (
+        {hasGoogleConnection && filters.google && (
           <p className="text-center text-xs text-muted-foreground">
             Google Calendar events are streamed directly to your browser and are not stored in our database.
           </p>
         )}
+
+        {/* Task Dialog */}
+        <CalendarTaskDialog
+          open={taskDialogOpen}
+          onOpenChange={setTaskDialogOpen}
+          task={selectedTask}
+          defaultDate={selectedDate}
+        />
       </div>
     </DashboardLayout>
   );
