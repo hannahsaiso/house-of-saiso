@@ -14,6 +14,9 @@ export interface Project {
   updated_at: string;
   archived_at: string | null;
   archived_by: string | null;
+  ai_creative_brief: string | null;
+  assigned_coordinator: string | null;
+  automated_folder_link: string | null;
   client?: {
     name: string;
     company: string | null;

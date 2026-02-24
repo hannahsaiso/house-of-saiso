@@ -813,8 +813,11 @@ export type Database = {
       }
       projects: {
         Row: {
+          ai_creative_brief: string | null
           archived_at: string | null
           archived_by: string | null
+          assigned_coordinator: string | null
+          automated_folder_link: string | null
           client_id: string | null
           created_at: string
           created_by: string | null
@@ -828,8 +831,11 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          ai_creative_brief?: string | null
           archived_at?: string | null
           archived_by?: string | null
+          assigned_coordinator?: string | null
+          automated_folder_link?: string | null
           client_id?: string | null
           created_at?: string
           created_by?: string | null
@@ -843,8 +849,11 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          ai_creative_brief?: string | null
           archived_at?: string | null
           archived_by?: string | null
+          assigned_coordinator?: string | null
+          automated_folder_link?: string | null
           client_id?: string | null
           created_at?: string
           created_by?: string | null
