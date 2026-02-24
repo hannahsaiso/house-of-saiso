@@ -14,6 +14,7 @@ import Studio from "./pages/Studio";
 import Vault from "./pages/Vault";
 import PublicCalendar from "./pages/PublicCalendar";
 import Onboarding from "./pages/Onboarding";
+import ThankYou from "./pages/ThankYou";
 import ClientIntake from "./pages/ClientIntake";
 import Settings from "./pages/Settings";
 import Integrations from "./pages/settings/Integrations";
@@ -55,6 +56,7 @@ const App = () => (
             <Route path="/inbox" element={<ProtectedRoute><Inbox /></ProtectedRoute>} />
             <Route path="/drive" element={<ProtectedRoute><Drive /></ProtectedRoute>} />
             <Route path="/onboarding" element={<Onboarding />} />
+            <Route path="/thank-you" element={<ThankYou />} />
             
             {/* Admin-only routes */}
             <Route path="/vault" element={<AdminRoute><Vault /></AdminRoute>} />
