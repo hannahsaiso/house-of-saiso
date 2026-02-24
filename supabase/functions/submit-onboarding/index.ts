@@ -18,14 +18,19 @@ async function generateCreativeBrief(clientData: Record<string, any>): Promise<s
 Based on the following client onboarding data, generate a comprehensive Creative Brief and Pitch Deck Outline.
 
 CLIENT DATA:
-- Company: ${clientData.companyName}
-- Contact: ${clientData.contactName}
+- Contact: ${clientData.contactName} (${clientData.contactRole || "N/A"})
 - Email: ${clientData.contactEmail}
-- Website: ${clientData.website || "N/A"}
+- Website: ${clientData.websiteUrl || "N/A"}
 - Instagram: ${clientData.instagram || "N/A"}
 - LinkedIn: ${clientData.linkedin || "N/A"}
-- Project Goals: ${clientData.projectGoals || "Not specified"}
-- Services Needed: ${(clientData.servicesNeeded || []).join(", ") || "Not specified"}
+- Brand Mission: ${clientData.brandMission || "Not specified"}
+- Tone of Voice: ${(clientData.toneOfVoice || []).join(", ") || "Not specified"}
+- Non-Negotiables: ${clientData.nonNegotiables || "None"}
+- North Star Goal: ${clientData.northStarGoal || "Not specified"}
+- Current Benchmarks: ${clientData.currentBenchmarks || "Not specified"}
+- Audience Pain Points: ${clientData.audiencePainPoints || "Not specified"}
+- Access Granted: ${(clientData.accessGranted || []).join(", ") || "None specified"}
+- Budget: ${clientData.budgetRange || "Not specified"}
 - Additional Notes: ${clientData.finalNotes || "None"}
 
 FORMAT YOUR RESPONSE EXACTLY AS FOLLOWS:
@@ -108,11 +113,12 @@ async function triggerMakeWebhook(
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         project_id: projectId,
-        company_name: clientData.companyName,
         contact_name: clientData.contactName,
         contact_email: clientData.contactEmail,
-        services_needed: clientData.servicesNeeded || [],
-        project_goals: clientData.projectGoals || "",
+        brand_mission: clientData.brandMission || "",
+        tone_of_voice: clientData.toneOfVoice || [],
+        north_star_goal: clientData.northStarGoal || "",
+        budget_range: clientData.budgetRange || "",
       }),
     });
 
@@ -123,7 +129,6 @@ async function triggerMakeWebhook(
 
     const result = await response.json();
 
-    // If Make.com returns a google_drive_link, save it silently
     if (result?.google_drive_link) {
       await supabaseAdmin
         .from("projects")
@@ -144,14 +149,19 @@ Deno.serve(async (req) => {
   try {
     const body = await req.json();
     const {
-      companyName, contactName, contactEmail, contactPhone,
-      instagram, linkedin, website, projectGoals,
-      servicesNeeded, brandAssetsFolder, finalNotes,
+      companyName, contactName, contactRole, contactEmail, contactPhone,
+      preferredChannel, billingContactName, billingContactEmail,
+      websiteUrl, instagram, linkedin, tiktok, facebook,
+      brandMission, toneOfVoice, nonNegotiables,
+      hasBrandGuidelines, primaryHexCodes,
+      northStarGoal, currentBenchmarks, audiencePainPoints,
+      typographyNames, mediaKitLink, accessGranted, budgetRange,
+      brandAssetsFolder, finalNotes,
     } = body;
 
-    if (!companyName || !contactName || !contactEmail) {
+    if (!contactName || !contactEmail) {
       return new Response(
-        JSON.stringify({ error: "Company name, contact name, and email are required." }),
+        JSON.stringify({ error: "Contact name and email are required." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -161,21 +171,41 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
+    // Build notes from all extra fields
+    const notesLines = [
+      preferredChannel ? `Preferred Channel: ${preferredChannel}` : null,
+      billingContactName ? `Billing Contact: ${billingContactName} (${billingContactEmail || "N/A"})` : null,
+      tiktok ? `TikTok: ${tiktok}` : null,
+      facebook ? `Facebook: ${facebook}` : null,
+      contactRole ? `Role: ${contactRole}` : null,
+      brandMission ? `Brand Mission: ${brandMission}` : null,
+      nonNegotiables ? `Non-Negotiables: ${nonNegotiables}` : null,
+      hasBrandGuidelines === false && primaryHexCodes ? `Primary Colors: ${primaryHexCodes}` : null,
+      northStarGoal ? `North Star Goal: ${northStarGoal}` : null,
+      currentBenchmarks ? `Current Benchmarks: ${currentBenchmarks}` : null,
+      audiencePainPoints ? `Audience Pain Points: ${audiencePainPoints}` : null,
+      typographyNames ? `Typography: ${typographyNames}` : null,
+      mediaKitLink ? `Media Kit: ${mediaKitLink}` : null,
+      accessGranted?.length ? `Access Granted: ${accessGranted.join(", ")}` : null,
+      budgetRange ? `Budget: ${budgetRange}` : null,
+      finalNotes ? `Additional Notes: ${finalNotes}` : null,
+    ].filter(Boolean).join("\n\n");
+
     // Create client record
     const { data: client, error: clientError } = await supabaseAdmin
       .from("clients")
       .insert({
         name: contactName,
-        company: companyName,
+        company: companyName || contactName,
         email: contactEmail,
         phone: contactPhone || null,
         instagram_handle: instagram || null,
         linkedin_url: linkedin || null,
-        website_url: website || null,
-        project_goals: projectGoals || null,
-        services_needed: servicesNeeded || [],
+        website_url: websiteUrl || null,
+        project_goals: northStarGoal || null,
+        services_needed: toneOfVoice || [],
         brand_assets_folder: brandAssetsFolder || null,
-        notes: finalNotes || null,
+        notes: notesLines || null,
         onboarded_at: new Date().toISOString(),
       })
       .select()
@@ -187,8 +217,8 @@ Deno.serve(async (req) => {
     const { data: project, error: projectError } = await supabaseAdmin
       .from("projects")
       .insert({
-        title: `${companyName} - Initial Project`,
-        description: projectGoals || null,
+        title: `${companyName || contactName} - Initial Project`,
+        description: northStarGoal || null,
         client_id: client.id,
         status: "active",
       })
@@ -208,20 +238,18 @@ Deno.serve(async (req) => {
         user_id: role.user_id,
         type: "client_onboarded",
         title: "New Client Onboarded",
-        message: `${companyName} has completed their onboarding.`,
+        message: `${companyName || contactName} has completed their onboarding.`,
         data: { client_id: client.id, project_id: project.id },
       }));
       await supabaseAdmin.from("notifications").insert(notifications);
     }
 
-    // Return success immediately — background tasks run after response
     const responsePayload = { success: true, clientId: client.id, projectId: project.id };
 
-    // Fire-and-forget: AI brief + Make.com webhook run in parallel, silently
+    // Fire-and-forget: AI brief + Make.com webhook
     (async () => {
       try {
         await Promise.allSettled([
-          // Generate AI creative brief
           (async () => {
             const brief = await generateCreativeBrief(body);
             if (brief) {
@@ -232,7 +260,6 @@ Deno.serve(async (req) => {
               console.log(`Creative brief saved for project ${project.id}`);
             }
           })(),
-          // Trigger Make.com webhook (Drive folder + Slack notification)
           triggerMakeWebhook(supabaseAdmin, project.id, body),
         ]);
       } catch (err) {
