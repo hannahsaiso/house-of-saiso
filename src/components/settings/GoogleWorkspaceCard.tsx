@@ -16,8 +16,8 @@ const GOOGLE_SCOPES = [
   "https://www.googleapis.com/auth/userinfo.profile",
 ].join(" ");
 
-// Fixed redirect URI - must match Google Cloud Console configuration
-const REDIRECT_URI = "https://zvoelshrluaotjrmxzho.lovable.app/auth/callback";
+// Dynamic redirect URI - works on any configured domain
+const REDIRECT_URI = `${window.location.origin}/auth/callback`;
 
 export function GoogleWorkspaceCard() {
   const { connection, isLoading, isConnected, isTokenExpired, disconnect, isDisconnecting, saveToken, isSaving } = useGoogleOAuth();
