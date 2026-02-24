@@ -8,7 +8,8 @@ import {
   Reply, 
   Loader2,
   ExternalLink,
-  Pin
+  Pin,
+  Send
 } from "lucide-react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
 import { useGmailInbox, useGmailThread, ParsedEmail } from "@/hooks/useGmailInbox";
 import { useGoogleOAuth } from "@/hooks/useGoogleOAuth";
 import { ConnectWorkspacePrompt } from "@/components/drive/ConnectWorkspacePrompt";
@@ -23,21 +25,19 @@ import { PinToProjectDialog } from "@/components/mail/PinToProjectDialog";
 import { EmailListSkeleton, EmailDetailSkeleton } from "@/components/ui/skeleton-loaders";
 import { format, isToday, isYesterday } from "date-fns";
 import { cn } from "@/lib/utils";
- 
- function formatEmailDate(date: Date): string {
-   if (isToday(date)) {
-     return format(date, "h:mm a");
-   }
-   if (isYesterday(date)) {
-     return "Yesterday";
-   }
-   return format(date, "MMM d");
- }
- 
- interface EmailWithClient extends ParsedEmail {
-   matchedClient: { id: string; name: string; email: string } | null;
- }
- 
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+
+function formatEmailDate(date: Date): string {
+  if (isToday(date)) return format(date, "h:mm a");
+  if (isYesterday(date)) return "Yesterday";
+  return format(date, "MMM d");
+}
+
+interface EmailWithClient extends ParsedEmail {
+  matchedClient: { id: string; name: string; email: string } | null;
+}
+
 export default function Inbox() {
   const { emails, isLoading, refetch, isConnected, isTokenExpired } = useGmailInbox();
   const { connection } = useGoogleOAuth();
@@ -52,6 +52,10 @@ export default function Inbox() {
     date: Date;
   } | null>(null);
 
+  // Reply state
+  const [replyBody, setReplyBody] = useState("");
+  const [isSending, setIsSending] = useState(false);
+
   const selectedEmail = emails.find((e) => e.threadId === selectedThreadId);
 
   const handlePinEmail = (email: ParsedEmail) => {
@@ -64,60 +68,89 @@ export default function Inbox() {
     });
     setPinDialogOpen(true);
   };
- 
-   // Handle not connected state
-   if (!isConnected || isTokenExpired) {
-     return (
-       <DashboardLayout>
-          <ConnectWorkspacePrompt feature="mail" />
-       </DashboardLayout>
-     );
-   }
- 
-   return (
-     <DashboardLayout>
-       <div className="mx-auto max-w-6xl">
-         <motion.div
-           initial={{ opacity: 0, y: 20 }}
-           animate={{ opacity: 1, y: 0 }}
-           className="mb-8"
-         >
-           <div className="flex items-center justify-between">
-             <div>
-                <p className="mb-2 font-heading text-xs font-medium uppercase tracking-widest text-muted-foreground">
-                 Communications
-               </p>
-               <h1 className="font-heading text-3xl font-semibold tracking-tight">
-                 Inbox
-               </h1>
-               <p className="mt-1 text-sm text-muted-foreground">
-                 {connection?.google_email}
-               </p>
-             </div>
-             <Button
-               variant="outline"
-               size="sm"
-               onClick={() => refetch()}
-               disabled={isLoading}
-             >
-               <RefreshCw className={cn("mr-2 h-4 w-4", isLoading && "animate-spin")} />
-               Refresh
-             </Button>
-           </div>
-         </motion.div>
- 
-         <div className="grid grid-cols-12 gap-6 h-[calc(100vh-240px)]">
-           {/* Email List */}
-           <div className={cn(
-             "col-span-12 lg:col-span-5 overflow-hidden rounded-lg border border-border/50 bg-card",
-             selectedThreadId && "hidden lg:block"
-           )}>
-             <div className="border-b border-border/50 px-6 py-4">
-               <h2 className="font-heading text-sm font-medium uppercase tracking-editorial text-muted-foreground">
-                 Recent Threads
-               </h2>
-             </div>
- 
+
+  const handleSendReply = async () => {
+    if (!selectedEmail || !replyBody.trim()) return;
+
+    setIsSending(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("send-email-reply", {
+        body: {
+          threadId: selectedEmail.threadId,
+          toAddress: selectedEmail.fromEmail,
+          messageBody: replyBody.trim(),
+          subject: selectedEmail.subject,
+        },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      toast.success("Reply sent successfully");
+      setReplyBody("");
+      // Refresh thread to show new message
+      refetch();
+    } catch (err: any) {
+      console.error("Send reply error:", err);
+      toast.error(err.message || "Failed to send reply");
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  // Handle not connected state
+  if (!isConnected || isTokenExpired) {
+    return (
+      <DashboardLayout>
+        <ConnectWorkspacePrompt feature="mail" />
+      </DashboardLayout>
+    );
+  }
+
+  return (
+    <DashboardLayout>
+      <div className="mx-auto max-w-6xl">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-8"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="mb-2 font-heading text-xs font-medium uppercase tracking-widest text-muted-foreground">
+                Communications
+              </p>
+              <h1 className="font-heading text-3xl font-semibold tracking-tight">
+                Inbox
+              </h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {connection?.google_email}
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => refetch()}
+              disabled={isLoading}
+            >
+              <RefreshCw className={cn("mr-2 h-4 w-4", isLoading && "animate-spin")} />
+              Refresh
+            </Button>
+          </div>
+        </motion.div>
+
+        <div className="grid grid-cols-12 gap-6 h-[calc(100vh-240px)]">
+          {/* Email List */}
+          <div className={cn(
+            "col-span-12 lg:col-span-5 overflow-hidden rounded-lg border border-border/50 bg-card",
+            selectedThreadId && "hidden lg:block"
+          )}>
+            <div className="border-b border-border/50 px-6 py-4">
+              <h2 className="font-heading text-sm font-medium uppercase tracking-editorial text-muted-foreground">
+                Recent Threads
+              </h2>
+            </div>
+
             <ScrollArea className="h-[calc(100%-60px)]">
               {isLoading ? (
                 <EmailListSkeleton />
@@ -140,7 +173,10 @@ export default function Inbox() {
                       )}
                     >
                       <button
-                        onClick={() => setSelectedThreadId(email.threadId)}
+                        onClick={() => {
+                          setSelectedThreadId(email.threadId);
+                          setReplyBody("");
+                        }}
                         className="w-full text-left"
                       >
                         <div className="flex items-start justify-between gap-4">
@@ -179,7 +215,6 @@ export default function Inbox() {
                           </span>
                         </div>
                       </button>
-                      {/* Pin to Project Button */}
                       <div className="mt-2 flex justify-end">
                         <Button
                           variant="ghost"
@@ -199,60 +234,58 @@ export default function Inbox() {
                 </div>
               )}
             </ScrollArea>
-           </div>
- 
-           {/* Email Detail */}
-           <div className={cn(
-             "col-span-12 lg:col-span-7 overflow-hidden rounded-lg border border-border/50 bg-card",
-             !selectedThreadId && "hidden lg:flex lg:items-center lg:justify-center"
-           )}>
-             {!selectedThreadId ? (
-               <div className="text-center px-6 py-12">
-                 <Mail className="mx-auto mb-4 h-12 w-12 text-muted-foreground/30" />
-                 <p className="text-sm text-muted-foreground">
-                   Select an email to read
-                 </p>
-               </div>
-             ) : (
-               <>
-                 {/* Thread Header */}
-                 <div className="border-b border-border/50 px-6 py-4">
-                   <div className="flex items-center justify-between">
-                     <Button
-                       variant="ghost"
-                       size="sm"
-                       onClick={() => setSelectedThreadId(null)}
-                       className="lg:hidden"
-                     >
-                       <ArrowLeft className="mr-2 h-4 w-4" />
-                       Back
-                     </Button>
-                     <div className="flex items-center gap-2">
-                       <Button variant="outline" size="sm" asChild>
-                         <a
-                           href={`https://mail.google.com/mail/u/0/#inbox/${selectedThreadId}`}
-                           target="_blank"
-                           rel="noopener noreferrer"
-                         >
-                           <ExternalLink className="mr-2 h-3 w-3" />
-                           Open in Gmail
-                         </a>
-                       </Button>
-                     </div>
-                   </div>
-                 </div>
- 
+          </div>
+
+          {/* Email Detail */}
+          <div className={cn(
+            "col-span-12 lg:col-span-7 overflow-hidden rounded-lg border border-border/50 bg-card",
+            !selectedThreadId && "hidden lg:flex lg:items-center lg:justify-center"
+          )}>
+            {!selectedThreadId ? (
+              <div className="text-center px-6 py-12">
+                <Mail className="mx-auto mb-4 h-12 w-12 text-muted-foreground/30" />
+                <p className="text-sm text-muted-foreground">
+                  Select an email to read
+                </p>
+              </div>
+            ) : (
+              <>
+                {/* Thread Header */}
+                <div className="border-b border-border/50 px-6 py-4">
+                  <div className="flex items-center justify-between">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSelectedThreadId(null)}
+                      className="lg:hidden"
+                    >
+                      <ArrowLeft className="mr-2 h-4 w-4" />
+                      Back
+                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button variant="outline" size="sm" asChild>
+                        <a
+                          href={`https://mail.google.com/mail/u/0/#inbox/${selectedThreadId}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <ExternalLink className="mr-2 h-3 w-3" />
+                          Open in Gmail
+                        </a>
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
                 <ScrollArea className="h-[calc(100%-65px)]">
                   {isLoadingThread ? (
                     <EmailDetailSkeleton />
                   ) : (
                     <div className="p-6 space-y-8">
-                      {/* Subject */}
                       <h2 className="font-heading text-xl font-medium leading-tight">
                         {selectedEmail?.subject}
                       </h2>
 
-                      {/* Messages in Thread */}
                       {threadMessages?.map((message, index) => (
                         <div key={message.id} className="space-y-4">
                           {index > 0 && <Separator />}
@@ -288,21 +321,37 @@ export default function Inbox() {
                         </div>
                       ))}
 
-                      {/* Reply CTA */}
-                      <Card className="border-dashed">
-                        <CardContent className="flex items-center justify-center py-6">
-                          <Button variant="outline" asChild>
-                            <a
-                              href={`https://mail.google.com/mail/u/0/#inbox/${selectedThreadId}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              <Reply className="mr-2 h-4 w-4" />
-                              Reply in Gmail
-                            </a>
+                      {/* Inline Reply */}
+                      <Separator />
+                      <div className="space-y-3">
+                        <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
+                          Reply
+                        </p>
+                        <Textarea
+                          placeholder={`Reply to ${selectedEmail?.from}…`}
+                          value={replyBody}
+                          onChange={(e) => setReplyBody(e.target.value)}
+                          className="min-h-[120px] resize-y"
+                          disabled={isSending}
+                        />
+                        <div className="flex items-center justify-between">
+                          <p className="text-[11px] text-muted-foreground">
+                            Sending as {connection?.google_email}
+                          </p>
+                          <Button
+                            size="sm"
+                            onClick={handleSendReply}
+                            disabled={!replyBody.trim() || isSending}
+                          >
+                            {isSending ? (
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            ) : (
+                              <Send className="mr-2 h-4 w-4" />
+                            )}
+                            Send Reply
                           </Button>
-                        </CardContent>
-                      </Card>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </ScrollArea>
@@ -312,7 +361,6 @@ export default function Inbox() {
         </div>
       </div>
 
-      {/* Pin to Project Dialog */}
       <PinToProjectDialog
         open={pinDialogOpen}
         onOpenChange={setPinDialogOpen}

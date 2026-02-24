@@ -56,3 +56,6 @@ verify_jwt = false
 
 [functions.submit-onboarding]
 verify_jwt = false
+
+[functions.send-email-reply]
+verify_jwt = false
