@@ -13,7 +13,6 @@ import { StepBasics } from "@/components/onboarding/StepBasics";
 import { StepProjectVision } from "@/components/onboarding/StepProjectVision";
 import { StepBrandAssets } from "@/components/onboarding/StepBrandAssets";
 import { StepLegal } from "@/components/onboarding/StepLegal";
-import { SuccessAnimation } from "@/components/ui/success-animation";
 import { useFileUpload } from "@/hooks/useFileUpload";
 
 export interface UploadedFile {
@@ -47,7 +46,6 @@ export default function Onboarding() {
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
   const [clientId] = useState(() => crypto.randomUUID());
 
   const { uploadFile } = useFileUpload(clientId);
@@ -136,7 +134,8 @@ export default function Onboarding() {
       if (error) throw error;
       if (result?.error) throw new Error(result.error);
 
-      setShowSuccess(true);
+      // Redirect immediately to thank-you page
+      navigate("/thank-you");
     } catch (error: any) {
       console.error("Onboarding error:", error);
       toast({
@@ -165,11 +164,6 @@ export default function Onboarding() {
 
   return (
     <OnboardingLayout>
-      <SuccessAnimation
-        show={showSuccess}
-        message="Welcome to House of Saiso!"
-        onComplete={() => navigate("/")}
-      />
 
       <OnboardingProgress currentStep={currentStep} totalSteps={TOTAL_STEPS} />
 

@@ -73,9 +73,7 @@ FORMAT YOUR RESPONSE EXACTLY AS FOLLOWS:
       },
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "user", content: prompt },
-        ],
+        messages: [{ role: "user", content: prompt }],
         stream: false,
       }),
     });
@@ -93,6 +91,51 @@ FORMAT YOUR RESPONSE EXACTLY AS FOLLOWS:
   }
 }
 
+async function triggerMakeWebhook(
+  supabaseAdmin: any,
+  projectId: string,
+  clientData: Record<string, any>
+): Promise<void> {
+  const MAKE_WEBHOOK_URL = Deno.env.get("MAKE_WEBHOOK_URL");
+  if (!MAKE_WEBHOOK_URL) {
+    console.error("MAKE_WEBHOOK_URL not configured, skipping automation");
+    return;
+  }
+
+  try {
+    const response = await fetch(MAKE_WEBHOOK_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        project_id: projectId,
+        company_name: clientData.companyName,
+        contact_name: clientData.contactName,
+        contact_email: clientData.contactEmail,
+        services_needed: clientData.servicesNeeded || [],
+        project_goals: clientData.projectGoals || "",
+      }),
+    });
+
+    if (!response.ok) {
+      console.error("Make.com webhook error:", response.status, await response.text());
+      return;
+    }
+
+    const result = await response.json();
+
+    // If Make.com returns a google_drive_link, save it silently
+    if (result?.google_drive_link) {
+      await supabaseAdmin
+        .from("projects")
+        .update({ automated_folder_link: result.google_drive_link })
+        .eq("id", projectId);
+      console.log(`Drive link saved for project ${projectId}`);
+    }
+  } catch (error) {
+    console.error("Make.com webhook failed:", error);
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -101,17 +144,9 @@ Deno.serve(async (req) => {
   try {
     const body = await req.json();
     const {
-      companyName,
-      contactName,
-      contactEmail,
-      contactPhone,
-      instagram,
-      linkedin,
-      website,
-      projectGoals,
-      servicesNeeded,
-      brandAssetsFolder,
-      finalNotes,
+      companyName, contactName, contactEmail, contactPhone,
+      instagram, linkedin, website, projectGoals,
+      servicesNeeded, brandAssetsFolder, finalNotes,
     } = body;
 
     if (!companyName || !contactName || !contactEmail) {
@@ -176,26 +211,32 @@ Deno.serve(async (req) => {
         message: `${companyName} has completed their onboarding.`,
         data: { client_id: client.id, project_id: project.id },
       }));
-
       await supabaseAdmin.from("notifications").insert(notifications);
     }
 
-    // Return success immediately — AI runs in background
+    // Return success immediately — background tasks run after response
     const responsePayload = { success: true, clientId: client.id, projectId: project.id };
 
-    // Fire-and-forget: generate creative brief and save it silently
+    // Fire-and-forget: AI brief + Make.com webhook run in parallel, silently
     (async () => {
       try {
-        const brief = await generateCreativeBrief(body);
-        if (brief) {
-          await supabaseAdmin
-            .from("projects")
-            .update({ ai_creative_brief: brief })
-            .eq("id", project.id);
-          console.log(`Creative brief saved for project ${project.id}`);
-        }
+        await Promise.allSettled([
+          // Generate AI creative brief
+          (async () => {
+            const brief = await generateCreativeBrief(body);
+            if (brief) {
+              await supabaseAdmin
+                .from("projects")
+                .update({ ai_creative_brief: brief })
+                .eq("id", project.id);
+              console.log(`Creative brief saved for project ${project.id}`);
+            }
+          })(),
+          // Trigger Make.com webhook (Drive folder + Slack notification)
+          triggerMakeWebhook(supabaseAdmin, project.id, body),
+        ]);
       } catch (err) {
-        console.error("Background brief generation failed:", err);
+        console.error("Background automation failed:", err);
       }
     })();
 
