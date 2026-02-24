@@ -900,6 +900,39 @@ export type Database = {
         }
         Relationships: []
       }
+      sent_emails: {
+        Row: {
+          body: string
+          created_at: string
+          gmail_message_id: string | null
+          id: string
+          subject: string | null
+          thread_id: string
+          to_address: string
+          user_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          gmail_message_id?: string | null
+          id?: string
+          subject?: string | null
+          thread_id: string
+          to_address: string
+          user_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          gmail_message_id?: string | null
+          id?: string
+          subject?: string | null
+          thread_id?: string
+          to_address?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       signature_requests: {
         Row: {
           booking_id: string | null
